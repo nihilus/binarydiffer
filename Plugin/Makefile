@@ -1,8 +1,8 @@
 PROC=DarunGrim2
-IDA=C:\mat\Bin\IDASDK\5.0\\
+IDA=..\idasdk50
 SNIPPET_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Snippets
 IPC_DIR=\mat\Projects\ResearchTools\DevEnv\Library\IPC
-IDA_LIB_DIR=..\..\Lib
+IDA_LIB_DIR=..\Lib
 DIFF_ENGINE_DIR=..\DiffEngine
 CRYPTO_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Crypto
 FILE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\File
@@ -15,8 +15,8 @@ CPP_PROJ=/nologo /Gz /D "WIN32" /D "_USE_IDA_SDK_49_OR_UPPER" /D "_USRDLL" /D "_
 LINK32=link.exe
 LINK32_FLAGS=kernel32.lib ws2_32.lib user32.lib advapi32.lib version.lib $(DATABASE_DIR)\sqlite3.lib "$(IDALIB)" $(LIBS) /nologo /dll /out:"$(BINARY)" /implib:$(F)$(PROC)$(A) /libpath:"$(L)" /export:PLUGIN /VERSION:0.1 /debug
 
-I=$(IDA)include\\
-L=$(IDA)libvc.w32\                   # libraries directory
+I=$(IDA)\include\\
+L=$(IDA)\libvc.w32\                   # libraries directory
 R=bin\                         # results directory
 F=.\vc.w32\                          # object files directory
 SUBDIR=
