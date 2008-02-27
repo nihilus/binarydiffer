@@ -4,7 +4,7 @@
 
 PROCESS_UTIL_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Snippets
 IPC_DIR=\mat\Projects\ResearchTools\DevEnv\Library\IPC
-IDA_LIB_DIR=..\..\Lib
+IDA_LIB_DIR=..\Lib
 SOCKET_LIB_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Socket
 
 cflags=$(cflags) -I$(IPC_DIR) -I.. -I$(PROCESS_UTIL_DIR) -I$(IDA_LIB_DIR) -I$(SOCKET_LIB_DIR) /Zi /EHsc -DSTANDALONE_SERVER 
