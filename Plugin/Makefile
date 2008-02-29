@@ -1,10 +1,19 @@
-PROC=DarunGrim2
+PROC=BinaryDiffer
 IDA=C:\mat\DevEnv\idasdk50
+SNIPPET_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Snippets
+IPC_DIR=\mat\Projects\ResearchTools\DevEnv\Library\IPC
+IDA_LIB_DIR="\mat\Projects\ResearchTools\Binary\Static Analysis\IDALib"
+CRYPTO_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Crypto
+FILE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\File
+DATABASE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Database
+SOCKET_LIB_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Socket
+
 LIB_DIR=..\Lib
 DIFF_ENGINE_DIR=..\DiffEngine
 CPP=cl.exe
 
-CPP_PROJ=/nologo /Gz /D "WIN32" /D "_USE_IDA_SDK_49_OR_UPPER" /D "_USRDLL" /D "__NT__" /D "__IDP__" /D MAXSTR=1024 /Fo$(F) /c  /EHsc -D_MT /WX  -I"$(I)" -I..\AnalyzerConsole -I. /V0.1 -MTd /Zi -DINTERNAL_SERVER  -I$(DIFF_ENGINE_DIR)
+# -DINTERNAL_SERVER: For testing internal server
+CPP_PROJ=/nologo /Gz /D "WIN32" /D "_USE_IDA_SDK_49_OR_UPPER" /D "_USRDLL" /D "__NT__" /D "__IDP__" /D MAXSTR=1024 /Fo$(F) /c  /EHsc -D_MT /WX  -I"$(I)" -I..\AnalyzerConsole -I. /V0.1 -MTd /Zi -DEXTERNAL_SERVER="\"BinaryDiffer.exe\"" -I$(DIFF_ENGINE_DIR) -I$(LIB_DIR)
 
 LINK32=link.exe
 LINK32_FLAGS=kernel32.lib ws2_32.lib user32.lib advapi32.lib version.lib "$(IDALIB)" $(LIBS) /nologo /dll /out:"$(BINARY)" /implib:$(F)$(PROC)$(A) /libpath:"$(L)" /export:PLUGIN /VERSION:0.1 /debug
@@ -20,7 +29,7 @@ A=.lib                               # library file extension
 RM=erase /q                          # File Remover
 IDALIB=$(L)ida$(A)
 
-OBJS=$(F)$(PROC)$(O) $(F)IDAAnalysis$(O) $(F)AnalysisServer$(O) $(F)fileinfo$(O) $(F)md5$(O) $(F)SharedMemory$(O) $(F)SharedSocket$(O) $(F)SocketOperation.obj
+OBJS=$(F)IDAAnalysis$(O) $(F)AnalysisServer$(O) $(F)fileinfo$(O) $(F)md5$(O) $(F)SharedMemory$(O) $(F)SharedSocket$(O) $(F)SocketOperation.obj $(F)ProcessUtils$(O) $(F)$(PROC)$(O)
 
 BINARY=$(R)$(SUBDIR)$(PROC)$(PLUGIN)
 
@@ -46,14 +55,6 @@ $(R)$(SUBDIR):
 	$(CPP) @<<
   $(CPP_PROJ) $< 
 <<
-
-SNIPPET_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Snippets
-IPC_DIR=\mat\Projects\ResearchTools\DevEnv\Library\IPC
-IDA_LIB_DIR="\mat\Projects\ResearchTools\Binary\Static Analysis\IDALib"
-CRYPTO_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Crypto
-FILE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\File
-DATABASE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Database
-SOCKET_LIB_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Socket
 
 $(LIB_DIR)\AnalysisServer.h:
 	copy $(DIFF_ENGINE_DIR)\AnalysisServer.h $(LIB_DIR)
@@ -117,6 +118,13 @@ $(F)IDAAnalysis$(O): $(LIB_DIR)\IDAAnalysis.cpp
 
 $(F)SocketOperation.obj: $(LIB_DIR)\SocketOperation.cpp
     $(CPP) $(CPP_PROJ) $(LIB_DIR)\SocketOperation.cpp  
+
+$(LIB_DIR)\ProcessUtils.h:	
+	copy $(SNIPPET_DIR)\ProcessUtils.h $(LIB_DIR)
+$(LIB_DIR)\ProcessUtils.cpp:	$(LIB_DIR)\ProcessUtils.h
+	copy $(SNIPPET_DIR)\ProcessUtils.cpp $(LIB_DIR)
+$(F)ProcessUtils.obj: $(LIB_DIR)\ProcessUtils.cpp
+    $(CPP) $(CPP_PROJ) $(LIB_DIR)\ProcessUtils.cpp
 
 .cpp{$(F)}.obj::
 	$(CPP) @<<
