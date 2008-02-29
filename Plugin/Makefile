@@ -1,19 +1,13 @@
 PROC=DarunGrim2
-IDA=..\idasdk50
-SNIPPET_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Snippets
-IPC_DIR=\mat\Projects\ResearchTools\DevEnv\Library\IPC
-IDA_LIB_DIR=..\Lib
+IDA=C:\mat\DevEnv\idasdk50
+LIB_DIR=..\Lib
 DIFF_ENGINE_DIR=..\DiffEngine
-CRYPTO_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Crypto
-FILE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\File
-DATABASE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Database
-SOCKET_LIB_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Socket
-
 CPP=cl.exe
-CPP_PROJ=/nologo /Gz /D "WIN32" /D "_USE_IDA_SDK_49_OR_UPPER" /D "_USRDLL" /D "__NT__" /D "__IDP__" /D MAXSTR=1024 /Fo$(F) /c  /EHsc -D_MT /WX  -I$(CRYPTO_DIR) -I"$(I)" -I$(IPC_DIR) -I$(SNIPPET_DIR) -I$(IDACODE_DIR) -I..\AnalyzerConsole -I. -I$(IDA_LIB_DIR) -I$(DIFF_ENGINE_DIR) -I$(FILE_DIR) -I$(DATABASE_DIR) -I$(SOCKET_LIB_DIR) /V0.1 -MTd /Zi -DINTERNAL_SERVER 
+
+CPP_PROJ=/nologo /Gz /D "WIN32" /D "_USE_IDA_SDK_49_OR_UPPER" /D "_USRDLL" /D "__NT__" /D "__IDP__" /D MAXSTR=1024 /Fo$(F) /c  /EHsc -D_MT /WX  -I"$(I)" -I..\AnalyzerConsole -I. /V0.1 -MTd /Zi -DINTERNAL_SERVER  -I$(DIFF_ENGINE_DIR)
 
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib ws2_32.lib user32.lib advapi32.lib version.lib $(DATABASE_DIR)\sqlite3.lib "$(IDALIB)" $(LIBS) /nologo /dll /out:"$(BINARY)" /implib:$(F)$(PROC)$(A) /libpath:"$(L)" /export:PLUGIN /VERSION:0.1 /debug
+LINK32_FLAGS=kernel32.lib ws2_32.lib user32.lib advapi32.lib version.lib $(SQLITE_DIR)\sqlite3.lib "$(IDALIB)" $(LIBS) /nologo /dll /out:"$(BINARY)" /implib:$(F)$(PROC)$(A) /libpath:"$(L)" /export:PLUGIN /VERSION:0.1 /debug
 
 I=$(IDA)\include\\
 L=$(IDA)\libvc.w32\                   # libraries directory
@@ -53,26 +47,77 @@ $(R)$(SUBDIR):
   $(CPP_PROJ) $< 
 <<
 
-$(F)AnalysisServer.obj: $(DIFF_ENGINE_DIR)\AnalysisServer.cpp
-    $(CPP) $(CPP_PROJ) $(DIFF_ENGINE_DIR)\AnalysisServer.cpp
+SNIPPET_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Snippets
+IPC_DIR=\mat\Projects\ResearchTools\DevEnv\Library\IPC
+IDA_LIB_DIR="\mat\Projects\ResearchTools\Binary\Static Analysis\IDALib"
+CRYPTO_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Crypto
+FILE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\File
+DATABASE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Database
+SOCKET_LIB_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Socket
+SQLITE_DIR=C:\mat\DevEnv\sqlite3
 
-$(F)SharedMemory.obj: $(IPC_DIR)\SharedMemory.cpp
-    $(CPP) $(CPP_PROJ) $(IPC_DIR)\SharedMemory.cpp
+$(LIB_DIR)\AnalysisServer.h:
+	copy $(DIFF_ENGINE_DIR)\AnalysisServer.h $(LIB_DIR)
+$(LIB_DIR)\AnalysisServer.cpp: $(LIB_DIR)\AnalysisServer.h $(LIB_DIR)\SocketOperation.h $(LIB_DIR)\SharedSocket.h $(LIB_DIR)\IDAAnalysisCommon.h
+	copy $(DIFF_ENGINE_DIR)\AnalysisServer.cpp $(LIB_DIR)
 
-$(F)SharedSocket.obj: $(IPC_DIR)\SharedSocket.cpp
-    $(CPP) $(CPP_PROJ) $(IPC_DIR)\SharedSocket.cpp
+$(LIB_DIR)\TLV.h:
+	copy $(IPC_DIR)\TLV.h $(LIB_DIR)
+
+$(LIB_DIR)\SharedMemory.h: $(LIB_DIR)\TLV.h
+	copy $(IPC_DIR)\SharedMemory.h $(LIB_DIR)
+$(LIB_DIR)\SharedMemory.cpp: $(LIB_DIR)\SharedMemory.h
+	copy $(IPC_DIR)\SharedMemory.cpp $(LIB_DIR)
+
+$(LIB_DIR)\SharedSocket.h:
+	copy $(IPC_DIR)\SharedSocket.h $(LIB_DIR)
+$(LIB_DIR)\SharedSocket.cpp: $(LIB_DIR)\SharedSocket.h
+	copy $(IPC_DIR)\SharedSocket.cpp $(LIB_DIR)
+
+$(LIB_DIR)\md5.h:
+	copy $(CRYPTO_DIR)\md5.h $(LIB_DIR)
+$(LIB_DIR)\md5.cpp: $(LIB_DIR)\md5.h
+	copy $(CRYPTO_DIR)\md5.cpp $(LIB_DIR)
+
+$(LIB_DIR)\fileinfo.h:
+	copy $(FILE_DIR)\fileinfo.h $(LIB_DIR)
+$(LIB_DIR)\fileinfo.cpp: $(LIB_DIR)\fileinfo.h $(LIB_DIR)\md5.cpp
+	copy $(FILE_DIR)\fileinfo.cpp $(LIB_DIR)
+
+$(LIB_DIR)\IdaIncludes.h:
+	copy $(IDA_LIB_DIR)\IdaIncludes.h $(LIB_DIR)
+$(LIB_DIR)\IDAAnalysisCommon.h:	
+	copy $(IDA_LIB_DIR)\IDAAnalysisCommon.h $(LIB_DIR)
+$(LIB_DIR)\IDAAnalysis.h: $(LIB_DIR)\IdaIncludes.h $(LIB_DIR)\SharedMemory.h
+	copy $(IDA_LIB_DIR)\IDAAnalysis.h $(LIB_DIR)
+$(LIB_DIR)\IDAAnalysis.cpp: $(LIB_DIR)\IDAAnalysis.h $(LIB_DIR)\IDAAnalysisCommon.h
+	copy $(IDA_LIB_DIR)\IDAAnalysis.cpp $(LIB_DIR)
+
+$(LIB_DIR)\SocketOperation.h:	
+	copy $(SOCKET_LIB_DIR)\SocketOperation.h $(LIB_DIR)
+$(LIB_DIR)\SocketOperation.cpp:	$(LIB_DIR)\SocketOperation.h
+	copy $(SOCKET_LIB_DIR)\SocketOperation.cpp $(LIB_DIR)
+
+$(F)AnalysisServer.obj: $(LIB_DIR)\AnalysisServer.cpp
+    $(CPP) $(CPP_PROJ) $(LIB_DIR)\AnalysisServer.cpp
+
+$(F)SharedMemory.obj: $(LIB_DIR)\SharedMemory.cpp
+    $(CPP) $(CPP_PROJ) $(LIB_DIR)\SharedMemory.cpp
+
+$(F)SharedSocket.obj: $(LIB_DIR)\SharedSocket.cpp
+    $(CPP) $(CPP_PROJ) $(LIB_DIR)\SharedSocket.cpp
    
 $(F)md5$(O): $(CRYPTO_DIR)\md5.cpp
-    $(CPP) $(CPP_PROJ) $(CRYPTO_DIR)\md5.cpp
+    $(CPP) $(CPP_PROJ) $(LIB_DIR)\md5.cpp
 
-$(F)fileinfo$(O): $(FILE_DIR)\fileinfo.cpp
-    $(CPP) $(CPP_PROJ) $(FILE_DIR)\fileinfo.cpp
+$(F)fileinfo$(O): $(LIB_DIR)\fileinfo.cpp
+    $(CPP) $(CPP_PROJ) $(LIB_DIR)\fileinfo.cpp
     
-$(F)IDAAnalysis$(O): $(IDA_LIB_DIR)\IDAAnalysis.cpp
-    $(CPP) $(CPP_PROJ) $(IDA_LIB_DIR)\IDAAnalysis.cpp    
+$(F)IDAAnalysis$(O): $(LIB_DIR)\IDAAnalysis.cpp
+    $(CPP) $(CPP_PROJ) $(LIB_DIR)\IDAAnalysis.cpp    
 
-$(F)SocketOperation.obj: $(SOCKET_LIB_DIR)\SocketOperation.cpp
-    $(CPP) $(CPP_PROJ) $(SOCKET_LIB_DIR)\SocketOperation.cpp  
+$(F)SocketOperation.obj: $(LIB_DIR)\SocketOperation.cpp
+    $(CPP) $(CPP_PROJ) $(LIB_DIR)\SocketOperation.cpp  
 
 .cpp{$(F)}.obj::
 	$(CPP) @<<
