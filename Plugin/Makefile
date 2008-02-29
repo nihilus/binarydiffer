@@ -7,7 +7,7 @@ CPP=cl.exe
 CPP_PROJ=/nologo /Gz /D "WIN32" /D "_USE_IDA_SDK_49_OR_UPPER" /D "_USRDLL" /D "__NT__" /D "__IDP__" /D MAXSTR=1024 /Fo$(F) /c  /EHsc -D_MT /WX  -I"$(I)" -I..\AnalyzerConsole -I. /V0.1 -MTd /Zi -DINTERNAL_SERVER  -I$(DIFF_ENGINE_DIR)
 
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib ws2_32.lib user32.lib advapi32.lib version.lib $(SQLITE_DIR)\sqlite3.lib "$(IDALIB)" $(LIBS) /nologo /dll /out:"$(BINARY)" /implib:$(F)$(PROC)$(A) /libpath:"$(L)" /export:PLUGIN /VERSION:0.1 /debug
+LINK32_FLAGS=kernel32.lib ws2_32.lib user32.lib advapi32.lib version.lib "$(IDALIB)" $(LIBS) /nologo /dll /out:"$(BINARY)" /implib:$(F)$(PROC)$(A) /libpath:"$(L)" /export:PLUGIN /VERSION:0.1 /debug
 
 I=$(IDA)\include\\
 L=$(IDA)\libvc.w32\                   # libraries directory
@@ -54,7 +54,6 @@ CRYPTO_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Crypto
 FILE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\File
 DATABASE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Database
 SOCKET_LIB_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Socket
-SQLITE_DIR=C:\mat\DevEnv\sqlite3
 
 $(LIB_DIR)\AnalysisServer.h:
 	copy $(DIFF_ENGINE_DIR)\AnalysisServer.h $(LIB_DIR)
