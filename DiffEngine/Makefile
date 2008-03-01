@@ -2,10 +2,7 @@
 
 !include <Win32.Mak>
 
-PROCESS_UTIL_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Snippets
-IPC_DIR=\mat\Projects\ResearchTools\DevEnv\Library\IPC
 LIB_DIR=..\Lib
-SOCKET_LIB_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Socket
 
 cflags=$(cflags) -I.. /Zi /EHsc -DSTANDALONE_SERVER -I$(LIB_DIR)
 conflags=$(conflags) /DEBUG
@@ -30,34 +27,14 @@ $(OUTDIR)\AnalysisServer.obj: AnalysisServer.cpp
 $(OUTDIR)\client.obj: client.cpp
     $(cc) $(cflags) $(cvars) /WX /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\" client.cpp
 
-$(LIB_DIR)\SharedMemory.h: $(LIB_DIR)\TLV.h $(IPC_DIR)\SharedMemory.h
-	copy $(IPC_DIR)\SharedMemory.h $(LIB_DIR)
-$(LIB_DIR)\SharedMemory.cpp: $(LIB_DIR)\SharedMemory.h $(IPC_DIR)\SharedMemory.cpp $(IPC_DIR)\SharedMemory.cpp
-	copy $(IPC_DIR)\SharedMemory.cpp $(LIB_DIR)
+$(OUTDIR)\SharedMemory.obj: $(LIB_DIR)\SharedMemory.cpp
+    $(cc) $(cflags) $(cvars) /WX /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\" $(LIB_DIR)\SharedMemory.cpp
 
-$(LIB_DIR)\SharedSocket.h: $(IPC_DIR)\SharedSocket.h
-	copy $(IPC_DIR)\SharedSocket.h $(LIB_DIR)
-$(LIB_DIR)\SharedSocket.cpp: $(LIB_DIR)\SharedSocket.h $(IPC_DIR)\SharedSocket.cpp
-	copy $(IPC_DIR)\SharedSocket.cpp $(LIB_DIR)
+$(OUTDIR)\SharedSocket.obj: $(LIB_DIR)\SharedSocket.cpp
+    $(cc) $(cflags) $(cvars) /WX /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\" $(LIB_DIR)\SharedSocket.cpp
 
-$(OUTDIR)\SharedMemory.obj: $(IPC_DIR)\SharedMemory.cpp
-    $(cc) $(cflags) $(cvars) /WX /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\" $(IPC_DIR)\SharedMemory.cpp
-
-$(OUTDIR)\SharedSocket.obj: $(IPC_DIR)\SharedSocket.cpp
-    $(cc) $(cflags) $(cvars) /WX /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\" $(IPC_DIR)\SharedSocket.cpp
-
-$(LIB_DIR)\ProcessUtils.h: $(PROCESS_UTIL_DIR)\ProcessUtils.h
-	copy $(PROCESS_UTIL_DIR)\ProcessUtils.h $(LIB_DIR)
-$(LIB_DIR)\ProcessUtils.cpp: $(LIB_DIR)\ProcessUtils.h $(PROCESS_UTIL_DIR)\ProcessUtils.cpp
-	copy $(PROCESS_UTIL_DIR)\ProcessUtils.cpp $(LIB_DIR)
-	
 $(OUTDIR)\ProcessUtils.obj: $(LIB_DIR)\ProcessUtils.cpp
     $(cc) $(cflags) $(cvars) /WX /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\" $(LIB_DIR)\ProcessUtils.cpp
-
-$(LIB_DIR)\SocketOperation.h:	$(SOCKET_LIB_DIR)\SocketOperation.h
-	copy $(SOCKET_LIB_DIR)\SocketOperation.h $(LIB_DIR)
-$(LIB_DIR)\SocketOperation.cpp:	$(LIB_DIR)\SocketOperation.h $(SOCKET_LIB_DIR)\SocketOperation.cpp $(SOCKET_LIB_DIR)\SocketOperation.cpp
-	copy $(SOCKET_LIB_DIR)\SocketOperation.cpp $(LIB_DIR)
 
 $(OUTDIR)\SocketOperation.obj: $(LIB_DIR)\SocketOperation.cpp
     $(cc) $(cflags) $(cvars) /WX /Fo"$(OUTDIR)\\" /Fd"$(OUTDIR)\\" $(LIB_DIR)\SocketOperation.cpp

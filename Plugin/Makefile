@@ -1,11 +1,6 @@
 PROC=BinaryDiffer
 IDA=C:\mat\DevEnv\idasdk50
-SNIPPET_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Snippets
-IPC_DIR=\mat\Projects\ResearchTools\DevEnv\Library\IPC
-CRYPTO_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Crypto
-FILE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\File
-DATABASE_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Database
-SOCKET_LIB_DIR=\mat\Projects\ResearchTools\DevEnv\Library\Socket
+
 IDA_LIBRARY_DIR="\mat\Projects\ResearchTools\Binary\Static Analysis\IDALib"
 
 LOCAL_LIB_DIR=..\Lib
@@ -56,49 +51,6 @@ $(R)$(SUBDIR):
   $(CPP_PROJ) $< 
 <<
 
-$(LOCAL_LIB_DIR)\AnalysisServer.h: $(DIFF_ENGINE_DIR)\AnalysisServer.h
-	copy $(DIFF_ENGINE_DIR)\AnalysisServer.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\AnalysisServer.cpp: $(LOCAL_LIB_DIR)\AnalysisServer.h $(LOCAL_LIB_DIR)\SocketOperation.h $(LOCAL_LIB_DIR)\SharedSocket.h $(LOCAL_LIB_DIR)\IDAAnalysisCommon.h $(DIFF_ENGINE_DIR)\AnalysisServer.cpp
-	copy $(DIFF_ENGINE_DIR)\AnalysisServer.cpp $(LOCAL_LIB_DIR)
-
-$(LOCAL_LIB_DIR)\TLV.h: $(IPC_DIR)\TLV.h
-	copy $(IPC_DIR)\TLV.h $(LOCAL_LIB_DIR)
-
-$(LOCAL_LIB_DIR)\SharedMemory.h: $(LOCAL_LIB_DIR)\TLV.h $(IPC_DIR)\SharedMemory.h
-	copy $(IPC_DIR)\SharedMemory.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\SharedMemory.cpp: $(LOCAL_LIB_DIR)\SharedMemory.h $(IPC_DIR)\SharedMemory.cpp
-	copy $(IPC_DIR)\SharedMemory.cpp $(LOCAL_LIB_DIR)
-
-$(LOCAL_LIB_DIR)\SharedSocket.h: $(IPC_DIR)\SharedSocket.h
-	copy $(IPC_DIR)\SharedSocket.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\SharedSocket.cpp: $(LOCAL_LIB_DIR)\SharedSocket.h $(IPC_DIR)\SharedSocket.cpp
-	copy $(IPC_DIR)\SharedSocket.cpp $(LOCAL_LIB_DIR)
-
-$(LOCAL_LIB_DIR)\md5.h: $(CRYPTO_DIR)\md5.h
-	copy $(CRYPTO_DIR)\md5.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\md5.cpp: $(LOCAL_LIB_DIR)\md5.h $(CRYPTO_DIR)\md5.cpp
-	copy $(CRYPTO_DIR)\md5.cpp $(LOCAL_LIB_DIR)
-
-$(LOCAL_LIB_DIR)\fileinfo.h: $(FILE_DIR)\fileinfo.h
-	copy $(FILE_DIR)\fileinfo.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\fileinfo.cpp: $(LOCAL_LIB_DIR)\fileinfo.h $(LOCAL_LIB_DIR)\md5.cpp $(FILE_DIR)\fileinfo.cpp
-	copy $(FILE_DIR)\fileinfo.cpp $(LOCAL_LIB_DIR)
-
-$(LOCAL_LIB_DIR)\IdaIncludes.h:
-	copy $(IDA_LIBRARY_DIR)\IdaIncludes.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\IDAAnalysisCommon.h:	
-	copy $(IDA_LIBRARY_DIR)\IDAAnalysisCommon.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\IDAAnalysis.h:  $(LOCAL_LIB_DIR)\SharedMemory.h 
-#$(LOCAL_LIB_DIR)\IdaIncludes.h $(IDA_LIBRARY_DIR)\IDAAnalysis.h
-	copy $(IDA_LIBRARY_DIR)\IDAAnalysis.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\IDAAnalysis.cpp: $(LOCAL_LIB_DIR)\IDAAnalysis.h $(LOCAL_LIB_DIR)\IDAAnalysisCommon.h $(LOCAL_LIB_DIR)\IdaIncludes.h
-	copy $(IDA_LIBRARY_DIR)\IDAAnalysis.cpp $(LOCAL_LIB_DIR)
-
-$(LOCAL_LIB_DIR)\SocketOperation.h:	$(SOCKET_LIB_DIR)\SocketOperation.h
-	copy $(SOCKET_LIB_DIR)\SocketOperation.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\SocketOperation.cpp:	$(LOCAL_LIB_DIR)\SocketOperation.h $(SOCKET_LIB_DIR)\SocketOperation.cpp
-	copy $(SOCKET_LIB_DIR)\SocketOperation.cpp $(LOCAL_LIB_DIR)
-
 $(F)AnalysisServer.obj: $(LOCAL_LIB_DIR)\AnalysisServer.cpp
     $(CPP) $(CPP_PROJ) $(LOCAL_LIB_DIR)\AnalysisServer.cpp
 
@@ -108,7 +60,7 @@ $(F)SharedMemory.obj: $(LOCAL_LIB_DIR)\SharedMemory.cpp
 $(F)SharedSocket.obj: $(LOCAL_LIB_DIR)\SharedSocket.cpp
     $(CPP) $(CPP_PROJ) $(LOCAL_LIB_DIR)\SharedSocket.cpp
    
-$(F)md5$(O): $(CRYPTO_DIR)\md5.cpp
+$(F)md5$(O): $(LOCAL_LIB_DIR)\md5.cpp
     $(CPP) $(CPP_PROJ) $(LOCAL_LIB_DIR)\md5.cpp
 
 $(F)fileinfo$(O): $(LOCAL_LIB_DIR)\fileinfo.cpp
@@ -122,10 +74,6 @@ $(F)IDAAnalysis$(O): $(LOCAL_LIB_DIR)\IDAAnalysis.cpp
 $(F)SocketOperation.obj: $(LOCAL_LIB_DIR)\SocketOperation.cpp
     $(CPP) $(CPP_PROJ) $(LOCAL_LIB_DIR)\SocketOperation.cpp  
 
-$(LOCAL_LIB_DIR)\ProcessUtils.h: $(SNIPPET_DIR)\ProcessUtils.h
-	copy $(SNIPPET_DIR)\ProcessUtils.h $(LOCAL_LIB_DIR)
-$(LOCAL_LIB_DIR)\ProcessUtils.cpp:	$(LOCAL_LIB_DIR)\ProcessUtils.h $(SNIPPET_DIR)\ProcessUtils.cpp
-	copy $(SNIPPET_DIR)\ProcessUtils.cpp $(LOCAL_LIB_DIR)
 $(F)ProcessUtils.obj: $(LOCAL_LIB_DIR)\ProcessUtils.cpp
     $(CPP) $(CPP_PROJ) $(LOCAL_LIB_DIR)\ProcessUtils.cpp
 
