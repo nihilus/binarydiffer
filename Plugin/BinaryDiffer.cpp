@@ -431,10 +431,11 @@ int ProcessCommand(SOCKET data_socket,char type,DWORD length,PBYTE data)
 			DataSharer data_sharer;
 			DWORD size=0;
 			memcpy(&size,data,sizeof(DWORD));
-			InitDataSharer(&data_sharer,
+			if(!InitDataSharer(&data_sharer,
 				(char *)data+sizeof(DWORD),
 				size,
-				FALSE);
+				FALSE))
+				return 0;
 			AnalyzeIDAData((bool (*)(PVOID context,BYTE type,PBYTE data,DWORD length))PutData,(PVOID)&data_sharer);
 		}
 		else if(type==ADD_UNINDENTIFIED_ADDR)
@@ -554,11 +555,13 @@ void idaapi run(int arg)
 #endif
 	FixExceptionHandlers();
 
+/*
 #ifdef INTERNAL_SERVER		
 	StartAnalysisServer(TRUE);
 #else
 	StartProcess(EXTERNAL_SERVER);
 #endif
+*/
 #ifdef USE_DATABASE
 	AddrMapHash *addr_map_base=NULL;
 	LocationInfo *p_first_location_info=NULL;
@@ -580,13 +583,13 @@ void idaapi run(int arg)
 	msg("End of Analysis\n");
 }
 
-char comment[]="This is a DarunGrim2 plugin. This dumps ida content to sqlite DB.";
+char comment[]="This is a Binary Differ plugin.";
 char help[] =
-				"A DarunGrim2 plugin module\n"
+				"A Binary Differ plugin module\n"
 				"This module helps you to analyze asm listings.\n"
 				"This dumps ida content to sqlite DB.\n";
 
-char wanted_name[]="DarunGrim2";
+char wanted_name[]="Binary Differ";
 char wanted_hotkey[]="Alt-8";
 
 plugin_t PLUGIN=

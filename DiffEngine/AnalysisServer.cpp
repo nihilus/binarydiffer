@@ -22,6 +22,8 @@
 #include "ProcessUtils.h"
 #endif
 
+#define DEBUG_LEVEL 0
+
 #undef USE_MATCH_MAP
 #define USE_MATCH_MAP
 
@@ -43,7 +45,7 @@ void printd2(char *format, ...)
 	char *time_str=strdup(_ctime64( &ltime));
 	time_str[strlen(time_str)-1]=NULL;
 	if(met_linefeed)
-		printf( "%s: %s", time_str,buffer);
+		printf("%s: %s", time_str,buffer);
 	else
 		printf( "%s",buffer);
 	if(log_fd)
@@ -243,7 +245,7 @@ int GetFingerPrintMatchRate(string unpatched_finger_print,string patched_finger_
 
 	//return TRUE;
 	/*
-	printf("%x/%x=%s:%s\n",
+	printf("%s: %x/%x=%s:%s\n",__FUNCTION__,
 		unpatched_address,patched_address,
 		unpatched_finger_print.c_str(),patched_finger_print.c_str());
 	*/
@@ -338,7 +340,7 @@ void DoFingerPrintMatch(
 			p_analysis_info_patched->fingerprint_hash_map.erase(to_remove_map_pIter->second);			
 		}
 		to_remove_map.clear();
-		printf("fingerprint matched number=%d\n",matched_number);
+		printf("%s: fingerprint matched number=%d\n",__FUNCTION__,matched_number);
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 }
 extern CRITICAL_SECTION CriticalSection;
@@ -414,7 +416,7 @@ void AnalyzeFunctionSanity(
 				last_patched_addr!=patched_addr
 			)
 			{
-				printf("**** Multiple Possibilities\n");
+				printf("%s: **** Multiple Possibilities\n",__FUNCTION__);
 				DumpMatchMapIterInfo(last_match_map_iter);
 				DumpMatchMapIterInfo(match_map_iter);
 			}
@@ -450,7 +452,7 @@ void AnalyzeFunctionSanity(
 				last_patched_addr!=patched_addr
 			)
 			{
-				printf("**** Multiple Possibilities\n");
+				printf("%s: **** Multiple Possibilities\n",__FUNCTION__);
 				DumpMatchMapIterInfo(last_match_map_iter);
 				DumpMatchMapIterInfo(match_map_iter);
 			}else
@@ -472,7 +474,7 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 	multimap <string, string> to_remove_map;
 
 	AnalysisResult *p_analysis_result=new AnalysisResult;
-	printf("Diff %d-%d\n",
+	printf("%s: Diff %d-%d\n",__FUNCTION__,
 		p_analysis_info_unpatched->fingerprint_hash_map.size(),
 		p_analysis_info_patched->fingerprint_hash_map.size());
 
@@ -517,18 +519,18 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 								));
 							matched_number++;
 #if DEBUG_LEVEL > 2
-							printf("matched [%s]%x-[%s]%x\n",
+							printf("%s: matched [%s]%x-[%s]%x\n",__FUNCTION__,
 								name_hash_map_pIter->first.c_str(),
 								name_hash_map_pIter->second,
 								patched_name_hash_map_pIter->first.c_str(),
 								patched_name_hash_map_pIter->second);
 #endif
 						}
-						//printf("%s\n",name_hash_map_pIter->first);
+						//printf("%s: %s\n",__FUNCTION__,name_hash_map_pIter->first);
 					}
 				}
 			}
-			printf("name matched number=%d\n",matched_number);
+			printf("%s: name matched number=%d\n",__FUNCTION__,matched_number);
 		}
 
 		// FingerPrint Match
@@ -546,7 +548,7 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 			multimap <DWORD, MappingData>::iterator match_map_iter;
 			multimap <DWORD,MappingData> *p_analyze_for_tree_matching_result_match_map=new multimap <DWORD,MappingData>;
 
-			printf("Performing Tree Matching on %d Items\n",p_analyze_for_tree_matching_target_match_map->size());
+			printf("%s: Performing Tree Matching on %d Items\n",__FUNCTION__,p_analyze_for_tree_matching_target_match_map->size());
 			for(match_map_iter=p_analyze_for_tree_matching_target_match_map->begin();
 				match_map_iter!=p_analyze_for_tree_matching_target_match_map->end();
 				match_map_iter++)
@@ -645,28 +647,31 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 					if(patched_addresses)
 						free(patched_addresses);
 				}
-				printf("%d/%d Items processed and produced %d match entries.\n",
-					processed_count,
-					p_analyze_for_tree_matching_target_match_map->size(),
-					p_analyze_for_tree_matching_result_match_map->size()
-				);
-					
+				processed_count++;
+				if(processed_count%100==0 || processed_count==p_analyze_for_tree_matching_target_match_map->size())
+				{
+					printf("%s: %d/%d Items processed and produced %d match entries.\n",__FUNCTION__,
+						processed_count,
+						p_analyze_for_tree_matching_target_match_map->size(),
+						p_analyze_for_tree_matching_result_match_map->size()
+					);
+				}
 			}
 
 			p_analyze_for_tree_matching_target_match_map->clear();
 			if(p_analyze_for_tree_matching_target_match_map!=&temporary_match_map)
 			{
-				printf("Cleaning p_analyze_for_tree_matching_target_match_map\n");
+				printf("%s: Cleaning p_analyze_for_tree_matching_target_match_map\n",__FUNCTION__);
 				delete p_analyze_for_tree_matching_target_match_map;
 			}
 			p_analyze_for_tree_matching_target_match_map=p_analyze_for_tree_matching_result_match_map;
-			printf("map tree match=%d\n",p_analyze_for_tree_matching_result_match_map->size());
+			printf("%s: map tree match=%d\n",__FUNCTION__,p_analyze_for_tree_matching_result_match_map->size());
 			if(p_analyze_for_tree_matching_result_match_map->size()==0)
 			{
 				p_analyze_for_tree_matching_result_match_map->clear();
 				if(p_analyze_for_tree_matching_result_match_map!=&temporary_match_map)
 				{
-					printf("Cleaning p_analyze_for_tree_matching_result_match_map\n");
+					printf("%s: Cleaning p_analyze_for_tree_matching_result_match_map\n",__FUNCTION__);
 					delete p_analyze_for_tree_matching_result_match_map;
 				}
 				break;
@@ -688,7 +693,7 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 			two_level_fingerprint_hash_map_pIter!=p_analysis_info_unpatched->two_level_fingerprint_hash_map.end();
 			two_level_fingerprint_hash_map_pIter++)
 		{
-			/*printf("%s: %d\n",two_level_fingerprint_hash_map_pIter->first.c_str(),
+			/*printf("%s: %s: %d\n",__FUNCTION__,two_level_fingerprint_hash_map_pIter->first.c_str(),
 				p_analysis_info_unpatched->two_level_fingerprint_hash_map.count(two_level_fingerprint_hash_map_pIter->first));
 			*/
 			if(p_analysis_info_unpatched->two_level_fingerprint_hash_map.count(two_level_fingerprint_hash_map_pIter->first)==1)
@@ -732,10 +737,10 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 			p_analysis_info_patched->two_level_fingerprint_hash_map.erase(to_remove_map_pIter->second);			
 		}
 		to_remove_map.clear();
-		printf("Two level fingerprint matched count=%d\n",matched_number);
+		printf("%s: Two level fingerprint matched count=%d\n",__FUNCTION__,matched_number);
 
 		///////////////// Done, Summary ////////////////////
-		printf("total=%d\n",p_analysis_result->match_map.size());
+		printf("%s: total=%d\n",__FUNCTION__,p_analysis_result->match_map.size());
 		if(temporary_match_map.size()==0)
 			break;
 	}
@@ -762,7 +767,7 @@ void PrintMatchMapInfo(
 		if(p_analysis_result->match_map.count(match_map_iter->first)==1)
 			unique_match_count++;
 	}
-	printf("unique_match_count=%d\n",unique_match_count);
+	printf("%s: unique_match_count=%d\n",__FUNCTION__,unique_match_count);
 
 
 	//Print Summary
@@ -771,13 +776,13 @@ void PrintMatchMapInfo(
 		match_map_iter!=p_analysis_result->match_map.end();
 		match_map_iter++)
 	{
-		printf("%x-%x (%s)\n",
+		printf("%s: %x-%x (%s)\n",__FUNCTION__,
 		match_map_iter->first,
 		match_map_iter->second.Address,
 		MappingDataTypeStr[match_map_iter->second.Type]);
 	}
 
-	printf("** unidentified(0)\n");
+	printf("%s: ** unidentified(0)\n",__FUNCTION__);
 	int unpatched_unidentified_number=0;
 	multimap <DWORD, string>::iterator unpatched_address_fingerprint_hash_map_Iter;
 	for(unpatched_address_fingerprint_hash_map_Iter=p_analysis_info_unpatched->address_fingerprint_hash_map.begin();
@@ -787,16 +792,16 @@ void PrintMatchMapInfo(
 	{
 		if(p_analysis_result->match_map.find(unpatched_address_fingerprint_hash_map_Iter->first)==p_analysis_result->match_map.end())
 		{
-			printf("%x ",unpatched_address_fingerprint_hash_map_Iter->first);
+			printf("%s: %x ",__FUNCTION__,unpatched_address_fingerprint_hash_map_Iter->first);
 			if(unpatched_unidentified_number%8==7)
 				printf("\n");
 			unpatched_unidentified_number++;
 		}
 	}
-	printf("unpatched_unidentified_number=%d\n",unpatched_unidentified_number);
+	printf("%s: unpatched_unidentified_number=%d\n",__FUNCTION__,unpatched_unidentified_number);
 
 
-	printf("** unidentified(1)\n");
+	printf("%s: ** unidentified(1)\n",__FUNCTION__);
 	int patched_unidentified_number=0;
 	multimap <DWORD, string>::iterator patched_address_fingerprint_hash_map_Iter;
 	for(patched_address_fingerprint_hash_map_Iter=p_analysis_info_patched->address_fingerprint_hash_map.begin();
@@ -806,13 +811,13 @@ void PrintMatchMapInfo(
 	{
 		if(p_analysis_result->reverse_match_map.find(patched_address_fingerprint_hash_map_Iter->first)==p_analysis_result->reverse_match_map.end())
 		{
-			printf("%x ",patched_address_fingerprint_hash_map_Iter->first);
+			printf("%s: %x ",__FUNCTION__,patched_address_fingerprint_hash_map_Iter->first);
 			if(patched_unidentified_number%8==7)
 				printf("\n");
 			patched_unidentified_number++;
 		}
 	}
-	printf("patched_unidentified_number=%d\n",patched_unidentified_number);
+	printf("%s: patched_unidentified_number=%d\n",__FUNCTION__,patched_unidentified_number);
 }
 
 void GetName(PAnalysisInfo p_analysis_info,DWORD address,char *buffer,int len)
@@ -853,12 +858,12 @@ void ShowDiffMap(
 	)
 	{
 		int addresses_number;
-		printf("%s: address=%x\n",__FUNCTION__,*address_list_iter);
+		printf("%s:  address=%x\n",__FUNCTION__,*address_list_iter);
 		p_addresses=GetMappedAddresses(p_cur_analysis_info_list->p_analysis_info,
 			*address_list_iter,CREF_FROM,&addresses_number);
 		if(p_addresses && addresses_number>0)
 		{
-			printf("%s: p_addresses=%x addresses_number=%d\n",__FUNCTION__,p_addresses,addresses_number);
+			printf("%s:  p_addresses=%x addresses_number=%d\n",__FUNCTION__,p_addresses,addresses_number);
 			for(int i=0;i<addresses_number;i++)
 			{
 				if(p_addresses[i])
@@ -1080,7 +1085,7 @@ void ShowOnIDA(
 
 	multimap <DWORD, POneLocationInfo>::iterator address_hash_map_pIter;
 
-	printf("** unidentified(0)\n");
+	printf("%s: ** unidentified(0)\n",__FUNCTION__);
 	int unpatched_unidentified_number=0;
 	multimap <DWORD, string>::iterator unpatched_address_fingerprint_hash_map_Iter;
 	for(unpatched_address_fingerprint_hash_map_Iter=p_analysis_info_unpatched->address_fingerprint_hash_map.begin();
@@ -1090,7 +1095,7 @@ void ShowOnIDA(
 	{
 		if(p_analysis_result->match_map.find(unpatched_address_fingerprint_hash_map_Iter->first)==p_analysis_result->match_map.end())
 		{
-			printf("%x ",unpatched_address_fingerprint_hash_map_Iter->first);
+			printf("%s: %x ",__FUNCTION__,unpatched_address_fingerprint_hash_map_Iter->first);
 			address_hash_map_pIter=p_analysis_info_unpatched->address_hash_map.find(unpatched_address_fingerprint_hash_map_Iter->first);
 			if(address_hash_map_pIter!=p_analysis_info_unpatched->address_hash_map.end())
 			{
@@ -1115,10 +1120,10 @@ void ShowOnIDA(
 			unpatched_unidentified_number++;
 		}
 	}
-	printf("unpatched_unidentified_number=%d\n",unpatched_unidentified_number);
+	printf("%s: unpatched_unidentified_number=%d\n",__FUNCTION__,unpatched_unidentified_number);
 
 
-	printf("** unidentified(1)\n");
+	printf("%s: ** unidentified(1)\n",__FUNCTION__);
 	int patched_unidentified_number=0;
 	multimap <DWORD, string>::iterator patched_address_fingerprint_hash_map_Iter;
 	for(patched_address_fingerprint_hash_map_Iter=p_analysis_info_patched->address_fingerprint_hash_map.begin();
@@ -1128,7 +1133,7 @@ void ShowOnIDA(
 	{
 		if(p_analysis_result->reverse_match_map.find(patched_address_fingerprint_hash_map_Iter->first)==p_analysis_result->reverse_match_map.end())
 		{
-			printf("%x ",patched_address_fingerprint_hash_map_Iter->first);
+			printf("%s: %x ",__FUNCTION__,patched_address_fingerprint_hash_map_Iter->first);
 
 			address_hash_map_pIter=p_analysis_info_patched->address_hash_map.find(patched_address_fingerprint_hash_map_Iter->first);
 			if(address_hash_map_pIter!=p_analysis_info_patched->address_hash_map.end())
@@ -1154,7 +1159,7 @@ void ShowOnIDA(
 			patched_unidentified_number++;
 		}
 	}
-	printf("patched_unidentified_number=%d\n",patched_unidentified_number);
+	printf("%s: patched_unidentified_number=%d\n",__FUNCTION__,patched_unidentified_number);
 	
 	SendTLVData(
 		unpatched_socket,
@@ -1188,8 +1193,7 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 		PBYTE data=GetData(p_data_sharer,&type,&length);
 
 		/*
-		printf("%s: type=%d/length=%d/data=%x\n",
-			__FUNCTION__,
+		printf("%s:  type=%d/length=%d/data=%x\n",__FUNCTION__,
 			type,length,data);
 		*/
 		if(!data)
@@ -1197,7 +1201,7 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 		if(type==FILE_INFO)
 		{
 			memcpy((PVOID)&p_analysis_info->file_info,(PVOID)data,sizeof(FileInfo));
-			printf("p_analysis_info=%x\n",p_analysis_info);
+			printf("%s: p_analysis_info=%x\n",__FUNCTION__,p_analysis_info);
 		}else
 		if(type==ONE_LOCATION_INFO && length==sizeof(OneLocationInfo))
 		{
@@ -1209,7 +1213,7 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 			}
 			p_last_one_location_info=p_one_location_info;
 #if DEBUG_LEVEL > 2
-			printf("%x %d [%x] block_type=%d\n",
+			printf("%s: %x %d [%x] block_type=%d\n",__FUNCTION__,
 				p_one_location_info->start_addr,//ea_t
 				p_one_location_info->flag, //flag_t
 				p_one_location_info->function_addr,
@@ -1227,7 +1231,7 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 		{
 			PMapInfo p_map_info=(PMapInfo)data;
 #if DEBUG_LEVEL > 2
-			printf("%s: %x(%x)->%x\n",
+			printf("%s: %s %x(%x)->%x\n",__FUNCTION__,
 				MapInfoTypesStr[p_map_info->type],
 				p_map_info->src_block,
 				p_map_info->src,
@@ -1248,7 +1252,7 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 			DWORD block_addr=0;
 			memcpy(&block_addr,data,4);
 #if DEBUG_LEVEL > 2
-			printf("FingerPrint: %x(%d bytes)\n",block_addr,length-4);
+			printf("%s: FingerPrint: %x(%d bytes)\n",__FUNCTION__,block_addr,length-4);
 #endif
 			TCHAR *string_buffer=(TCHAR *)malloc(length*2+10);
 			memset(string_buffer,0,length*2+10);
@@ -1263,18 +1267,18 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 			free(data);
 		}else if(type==END_OF_DATA)
 		{
-			printf("End of Analysis\n");
-			printf("address_hash_map %d entries\nfingerprint_hash_map %d entries\nname_hash_map %d entries\nmap_info_hash_map %d entries\n",
+			printf("%s: End of Analysis\n",__FUNCTION__);
+			printf("%s: address_hash_map %d entries\nfingerprint_hash_map %d entries\nname_hash_map %d entries\nmap_info_hash_map %d entries\n",__FUNCTION__,
 				p_analysis_info->address_hash_map.size(),
 				p_analysis_info->fingerprint_hash_map.size(),
 				p_analysis_info->name_hash_map.size(),
 				p_analysis_info->map_info_hash_map.size()
 				);
-#if DEBUG_LEVEL > 5
+#if DEBUG_LEVEL > 1000
 			fingerprint_hash_map_pIter=p_analysis_info->fingerprint_hash_map.find("1b04020502");
 			if(fingerprint_hash_map_pIter!=p_analysis_info->fingerprint_hash_map.end())
 			{
-				printf("%s-%x (%d)\n",
+				printf("%s: %s-%x (%d)\n",__FUNCTION__,
 					fingerprint_hash_map_pIter->first.c_str(),
 					fingerprint_hash_map_pIter->second,
 					p_analysis_info->fingerprint_hash_map.count("1b04020502"));
@@ -1285,7 +1289,7 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 				fingerprint_hash_map_pIter++)
 			
 			{	
-				printf("%s-%x\n",
+				printf("%s: %x-%x\n",__FUNCTION__,
 					fingerprint_hash_map_pIter->first,
 					fingerprint_hash_map_pIter->second);
 			}
@@ -1293,7 +1297,7 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 			address_hash_map_pIter=p_analysis_info->address_hash_map.find(0x7C801625);
 			POneLocationInfo p_one_location_info=(POneLocationInfo)address_hash_map_pIter->second;
 			cout << address_hash_map_pIter->first <<"\n";
-			printf("%x %d [%x] block_type=%d\n",
+			printf("%s: %x %d [%x] block_type=%d\n",__FUNCTION__,
 				p_one_location_info->start_addr,//ea_t
 				p_one_location_info->flag, //flag_t
 				p_one_location_info->function_addr,
@@ -1329,7 +1333,7 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 					}
 				}
 			}
-			printf("Two Level Fingerprint Generation Done [%d entries created]\n",p_analysis_info->two_level_fingerprint_hash_map.size());
+			printf("%s: Two Level Fingerprint Generation Done [%d entries created]\n",__FUNCTION__,p_analysis_info->two_level_fingerprint_hash_map.size());
 #endif
 			break;
 		}
@@ -1361,15 +1365,15 @@ void DumpBlockInfo(PAnalysisInfo p_analysis_info,DWORD block_address)
 			&addresses_number);
 		if(addresses)
 		{
-			printf("%s: ",type_descriptions[i]);
+			printf("%s: %s: ",__FUNCTION__,type_descriptions[i]);
 			for(int j=0;j<addresses_number;j++)
 			{
-				printf("%x ",addresses[j]);
+				printf("%s: %x ",__FUNCTION__,addresses[j]);
 			}
 			printf("\n");
 		}
 	}
-	printf("fingerprint: %s\n",
+	printf("%s: fingerprint: %s\n",__FUNCTION__,
 		GetFingerPrintFromFingerprintHash(p_analysis_info,block_address)
 		);
 }
@@ -1379,145 +1383,146 @@ void DumpBlockInfo(PAnalysisInfo p_analysis_info,DWORD block_address)
 
 void ProcessRequest(DWORD dwEvent)
 {
+	static AnalysisResult *p_analysis_result=NULL;
+
+	if(dwEvent==WAIT_OBJECT_0+BASIC_INFO_EVENT_OBJ_POS)
 	{
-		AnalysisResult *p_analysis_result=NULL;
 		PAnalysisInfo p_analysis_infos[2]={NULL,};
 		SOCKET client_sockets[2];
 
-		if(dwEvent==WAIT_OBJECT_0+BASIC_INFO_EVENT_OBJ_POS)
+		EnterCriticalSection(&CriticalSection); 
+		AnalysisInfoList *pAnalysisInfoListCur=pAnalysisInfoListRoot;
+		int analysis_info_i=0;
+		while(pAnalysisInfoListCur)
 		{
-			EnterCriticalSection(&CriticalSection); 
-			AnalysisInfoList *pAnalysisInfoListCur=pAnalysisInfoListRoot;
-			int analysis_info_i=0;
-			while(pAnalysisInfoListCur)
+			if(pAnalysisInfoListCur->p_analysis_info)
 			{
-				if(pAnalysisInfoListCur->p_analysis_info)
-				{
-					p_analysis_infos[analysis_info_i]=pAnalysisInfoListCur->p_analysis_info;
-					client_sockets[analysis_info_i]=pAnalysisInfoListCur->socket;
-					analysis_info_i++;
-				}
-				pAnalysisInfoListCur=pAnalysisInfoListCur->next;
+				p_analysis_infos[analysis_info_i]=pAnalysisInfoListCur->p_analysis_info;
+				client_sockets[analysis_info_i]=pAnalysisInfoListCur->socket;
+				analysis_info_i++;
+				if(analysis_info_i==2)
+					break;
 			}
-			LeaveCriticalSection(&CriticalSection);
-			//Basic Information
-			if(analysis_info_i==2)
-			{
-				printf("Start diffing...\n");
-				p_analysis_result=DiffAnalysisInfo(
-					p_analysis_infos[0],
-					p_analysis_infos[1]
-				);
-				/*PrintMatchMapInfo(
-					p_analysis_result,
-					p_analysis_infos[0],
-					p_analysis_infos[1]
-					);*/
-				ShowOnIDA(
-					p_analysis_result,
-					p_analysis_infos[0],
-					client_sockets[0],
-					p_analysis_infos[1],
-					client_sockets[1]
-				);
-			}
-		}else if(dwEvent==WAIT_OBJECT_0+SHOW_MATCH_ADDR_EVENT_OBJ_POS)
+			pAnalysisInfoListCur=pAnalysisInfoListCur->next;
+		}
+		LeaveCriticalSection(&CriticalSection);			
+
+		//Basic Information
+		if(analysis_info_i==2)
 		{
-			//SHOW_MATCH_ADDR
-			EnterCriticalSection(&CriticalSection); 
-			AnalysisInfoList *pAnalysisInfoListCur=pAnalysisInfoListRoot;
-			int analysis_info_i=0;
-			while(pAnalysisInfoListCur)
+			printf("%s: Start diffing...\n",__FUNCTION__);
+			p_analysis_result=DiffAnalysisInfo(
+				p_analysis_infos[0],
+				p_analysis_infos[1]
+			);
+			/*PrintMatchMapInfo(
+				p_analysis_result,
+				p_analysis_infos[0],
+				p_analysis_infos[1]
+				);*/
+			ShowOnIDA(
+				p_analysis_result,
+				p_analysis_infos[0],
+				client_sockets[0],
+				p_analysis_infos[1],
+				client_sockets[1]
+			);
+		}
+	}else if(dwEvent==WAIT_OBJECT_0+SHOW_MATCH_ADDR_EVENT_OBJ_POS)
+	{
+		//SHOW_MATCH_ADDR
+		EnterCriticalSection(&CriticalSection); 
+		AnalysisInfoList *pAnalysisInfoListCur=pAnalysisInfoListRoot;
+		int analysis_info_i=0;
+		while(pAnalysisInfoListCur)
+		{
+			if(pAnalysisInfoListCur->address)
 			{
-				if(pAnalysisInfoListCur->address)
-				{
 #if DEBUG_LEVEL > 2
-					printf("pAnalysisInfoListCur->address= %x\n",pAnalysisInfoListCur->address);
+				printf("%s: pAnalysisInfoListCur->address= %x p_analysis_result=%p\n",__FUNCTION__,pAnalysisInfoListCur->address,p_analysis_result);
 #endif
-					if(analysis_info_i==1)
+				if(analysis_info_i==1)
+				{
+					DWORD block_address=GetBlockAddress(&pAnalysisInfoListCur->p_analysis_info->address_hash_map,pAnalysisInfoListCur->address);
+					multimap <DWORD, MappingData>::iterator match_map_iter=p_analysis_result->match_map.find(block_address);
+
+					printf("%s: address: %x block_address: %x\n",__FUNCTION__,
+						pAnalysisInfoListCur->address,
+						block_address);
+					DumpBlockInfo(pAnalysisInfoListCur->p_analysis_info,block_address);
+
+					if(match_map_iter!=p_analysis_result->match_map.end())
 					{
-						DWORD block_address=GetBlockAddress(&pAnalysisInfoListCur->p_analysis_info->address_hash_map,pAnalysisInfoListCur->address);
-						multimap <DWORD, MappingData>::iterator match_map_iter=
-							p_analysis_result->match_map.find(block_address);
-
-						printf("address: %x block_address: %x\n",
+						/*
+						ShowDiffMap(
+							p_analysis_result,
+							pAnalysisInfoListRoot,
 							pAnalysisInfoListCur->address,
-							block_address);
-						DumpBlockInfo(pAnalysisInfoListCur->p_analysis_info,block_address);
-
-						if(match_map_iter!=p_analysis_result->match_map.end())
+							match_map_iter->second.Address);
+						*/
+						if(pAnalysisInfoListCur->next)
 						{
-							/*
-							ShowDiffMap(
-								p_analysis_result,
-								pAnalysisInfoListRoot,
-								pAnalysisInfoListCur->address,
-								match_map_iter->second.Address);
-							*/
-							if(pAnalysisInfoListCur->next)
-							{
-								SendTLVData(
-									pAnalysisInfoListCur->next->socket,
-									JUMP_TO_ADDR,
-									(PBYTE)&match_map_iter->second.Address,
-									sizeof(DWORD));
-							}
-
-							while(match_map_iter!=p_analysis_result->match_map.end() &&
-								match_map_iter->first==block_address)
-							{
-								DumpMatchMapIterInfo(match_map_iter);
-								match_map_iter++;
-							}
+							SendTLVData(
+								pAnalysisInfoListCur->next->socket,
+								JUMP_TO_ADDR,
+								(PBYTE)&match_map_iter->second.Address,
+								sizeof(DWORD));
 						}
-					}else if(analysis_info_i==2)
-					{
-						DWORD block_address=GetBlockAddress(&pAnalysisInfoListCur->p_analysis_info->address_hash_map,pAnalysisInfoListCur->address);
-						multimap <DWORD, MappingData>::iterator match_map_iter=
-							p_analysis_result->reverse_match_map.find(block_address);
 
-						printf("address: %x block_address: %x\n",
-							pAnalysisInfoListCur->address,
-							block_address);
-						
-						DumpBlockInfo(pAnalysisInfoListCur->p_analysis_info,block_address);
-						if(match_map_iter!=p_analysis_result->reverse_match_map.end())
+						while(match_map_iter!=p_analysis_result->match_map.end() &&
+							match_map_iter->first==block_address)
 						{
-							/*
-							ShowDiffMap(
-								p_analysis_result,
-								pAnalysisInfoListRoot,
-								match_map_iter->second.Address,
-								pAnalysisInfoListCur->address);
-							*/
-							if(pAnalysisInfoListCur->prev)
-							{
-								SendTLVData(
-									pAnalysisInfoListCur->prev->socket,
-									JUMP_TO_ADDR,
-									(PBYTE)&match_map_iter->second.Address,
-									sizeof(DWORD));
-							}
-							while(match_map_iter!=p_analysis_result->match_map.end() &&
-								match_map_iter->first==block_address)							
-							{
-								DumpMatchMapIterInfo(match_map_iter);
-								match_map_iter++;
-							}
+							DumpMatchMapIterInfo(match_map_iter);
+							match_map_iter++;
 						}
-						break;
 					}
-					pAnalysisInfoListCur->address=NULL;
+				}else if(analysis_info_i==2)
+				{
+					DWORD block_address=GetBlockAddress(&pAnalysisInfoListCur->p_analysis_info->address_hash_map,pAnalysisInfoListCur->address);
+					multimap <DWORD, MappingData>::iterator match_map_iter=
+						p_analysis_result->reverse_match_map.find(block_address);
+
+					printf("%s: address: %x block_address: %x\n",__FUNCTION__,
+						pAnalysisInfoListCur->address,
+						block_address);
+					
+					DumpBlockInfo(pAnalysisInfoListCur->p_analysis_info,block_address);
+					if(match_map_iter!=p_analysis_result->reverse_match_map.end())
+					{
+						/*
+						ShowDiffMap(
+							p_analysis_result,
+							pAnalysisInfoListRoot,
+							match_map_iter->second.Address,
+							pAnalysisInfoListCur->address);
+						*/
+						if(pAnalysisInfoListCur->prev)
+						{
+							SendTLVData(
+								pAnalysisInfoListCur->prev->socket,
+								JUMP_TO_ADDR,
+								(PBYTE)&match_map_iter->second.Address,
+								sizeof(DWORD));
+						}
+						while(match_map_iter!=p_analysis_result->match_map.end() &&
+							match_map_iter->first==block_address)							
+						{
+							DumpMatchMapIterInfo(match_map_iter);
+							match_map_iter++;
+						}
+					}
 					break;
 				}
-				analysis_info_i++;
-				pAnalysisInfoListCur=pAnalysisInfoListCur->next;
+				pAnalysisInfoListCur->address=NULL;
+				break;
 			}
-			LeaveCriticalSection(&CriticalSection);
-		}else
-		{
-			//Error
+			analysis_info_i++;
+			pAnalysisInfoListCur=pAnalysisInfoListCur->next;
 		}
+		LeaveCriticalSection(&CriticalSection);
+	}else
+	{
+		//Error
 	}
 }
 
@@ -1575,10 +1580,11 @@ DWORD CALLBACK IDAClientWorkerThread(LPVOID lpParam)
 
 	DataSharer data_sharer;
 	#define SHARED_MEMORY_SIZE 100000
-	InitDataSharer(&data_sharer,
+	if(!InitDataSharer(&data_sharer,
 		shared_memory_name,
 		SHARED_MEMORY_SIZE,
-		TRUE);
+		TRUE))
+		return FALSE;
 	char data[1024+sizeof(DWORD)];
 	*(DWORD *)data=SHARED_MEMORY_SIZE;
 	memcpy(data+sizeof(DWORD),shared_memory_name,strlen(shared_memory_name));
@@ -1619,11 +1625,11 @@ DWORD CALLBACK IDAClientWorkerThread(LPVOID lpParam)
 		PBYTE data=RecvTLVData(client_socket,&type,&length);
 		if(data)
 		{
-			printf("Type: %d Length: %d data:%x\n",type,length,data);
+			printf("%s: Type: %d Length: %d data:%x\n",__FUNCTION__,type,length,data);
 			if(type==SHOW_MATCH_ADDR && length>=4)
 			{
 				DWORD address=*(DWORD *)data;
-				printf("Showing address=%x\n",address);
+				printf("%s: Showing address=%x\n",__FUNCTION__,address);
 				pAnalysisInfoListNew->address=address;
 				SetEvent(hNewInfoEvents[SHOW_MATCH_ADDR_EVENT_OBJ_POS]);
 			}
@@ -1632,8 +1638,15 @@ DWORD CALLBACK IDAClientWorkerThread(LPVOID lpParam)
 			break;
 		}
 	}
-	//shutdown(client_socket,SD_BOTH);
 	closesocket(client_socket);
+	EnterCriticalSection(&CriticalSection); 
+	// Access the shared resource.
+	if(pAnalysisInfoListCur->next)
+		pAnalysisInfoListCur->next->prev=pAnalysisInfoListNew->prev;
+	if(pAnalysisInfoListNew->prev)
+		pAnalysisInfoListNew->prev->next=pAnalysisInfoListNew->next;
+	// Release ownership of the critical section.
+	LeaveCriticalSection(&CriticalSection);	
 	return TRUE;
 }
 
@@ -1651,12 +1664,13 @@ int StartAnalysisServer(BOOL bCreateNewThread)
 	pAnalysisInfoListRoot->p_analysis_info=NULL;
 	pAnalysisInfoListRoot->next=NULL;
 
+	printf("%s: Starting...\n",__FUNCTION__);
 	InitializeBrokerThread();
 
 	unsigned short listening_port=DARUNGRIM2_PORT;
 	if(bCreateNewThread)
 	{
-		
+		printf("%s: CreateThread InitIDACommucation\n",__FUNCTION__);
 		CreateThread(
 			NULL,
 			0,
@@ -1671,3 +1685,4 @@ int StartAnalysisServer(BOOL bCreateNewThread)
 }
 
 #endif
+
