@@ -4,7 +4,7 @@
 
 LIB_DIR=..\Lib
 
-cflags=$(cflags) -I.. /Zi /EHsc -DSTANDALONE_SERVER -I$(LIB_DIR)
+cflags=$(cflags) -I.. /Zi /EHsc /D "_CRT_SECURE_NO_DEPRECATE" /D "USE_DANGEROUS_FUNCTIONS" -DSTANDALONE_SERVER -I$(LIB_DIR)
 conflags=$(conflags) /DEBUG
 conlibs=$(conlibs) user32.lib
 
