@@ -8,7 +8,7 @@ DIFF_ENGINE_DIR=..\DiffEngine
 CPP=cl.exe
 
 # -DINTERNAL_SERVER: For testing internal server
-CPP_PROJ=/nologo /Gz /D "WIN32" /D "_USE_IDA_SDK_49_OR_UPPER" /D "_USRDLL" /D "__NT__" /D "__IDP__" /D MAXSTR=1024 /Fo$(F) /c  /EHsc -D_MT /WX  -I"$(I)" -I..\AnalyzerConsole -I. /V0.1 -MTd /Zi -DEXTERNAL_SERVER="\"BinaryDiffer.exe\"" -I$(DIFF_ENGINE_DIR) -I$(LOCAL_LIB_DIR)
+CPP_PROJ=/nologo /Gz /D "WIN32" /D "_CRT_SECURE_NO_DEPRECATE" /D "USE_DANGEROUS_FUNCTIONS" /D "_USE_IDA_SDK_49_OR_UPPER" /D "_USRDLL" /D "__NT__" /D "__IDP__" /D MAXSTR=1024 /Fo$(F) /c  /EHsc -D_MT /WX  -I"$(I)" -I..\AnalyzerConsole -I. /V0.1 -MTd /Zi -DEXTERNAL_SERVER="\"BinaryDiffer.exe\"" -I$(DIFF_ENGINE_DIR) -I$(LOCAL_LIB_DIR)
 
 LINK32=link.exe
 LINK32_FLAGS=kernel32.lib ws2_32.lib user32.lib advapi32.lib version.lib "$(IDALIB)" $(LIBS) /nologo /dll /out:"$(BINARY)" /implib:$(F)$(PROC)$(A) /libpath:"$(L)" /export:PLUGIN /VERSION:0.1 /debug
