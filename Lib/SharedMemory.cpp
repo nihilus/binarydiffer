@@ -129,7 +129,6 @@ BOOL PutData(
 	return TRUE;
 }
 
-#define NON_BLOCKING
 PBYTE GetData(PDataSharer p_data_sharer,BYTE *p_type,DWORD *p_length)
 {
 	PTLV p_tlv;
@@ -147,7 +146,7 @@ PBYTE GetData(PDataSharer p_data_sharer,BYTE *p_type,DWORD *p_length)
 	}
 
 	EnterCriticalSection(&p_data_sharer->critical_section); 
-#ifdef NON_BLOCKING
+#ifdef NON_BLOCKING_SHARED_MEMORY
 	if(1)
 #else
 	while(1)
@@ -161,7 +160,7 @@ PBYTE GetData(PDataSharer p_data_sharer,BYTE *p_type,DWORD *p_length)
 			//Wait For Read Event
 			while(WaitForSingleObject(p_data_sharer->read_event,1)!=WAIT_OBJECT_0)
 			{
-#ifdef NON_BLOCKING
+#ifdef NON_BLOCKING_SHARED_MEMORY
 				LeaveCriticalSection(&p_data_sharer->critical_section); 
 				return NULL;
 #endif
@@ -328,24 +327,27 @@ BOOL InitDataSharer(PDataSharer p_data_sharer,TCHAR *shared_memory_name,int shar
 			0,
 			0,
 			shared_memory_size+sizeof(MemoryHeader)); 
-	
-		printd(TEXT("%s: shared_buffer=%x\n"),
-			__FUNCTION__,
-			shared_buffer);
-	
-		//Init Shared Memory Header(R/W Pointer,Size)
-		p_data_sharer->p_memory_header=(PMemoryHeader)shared_buffer;
-		if(is_server)
+
+		if(shared_buffer)
 		{
-			p_data_sharer->p_memory_header->BufferSize=shared_memory_size;
-			p_data_sharer->p_memory_header->ReadPoint=p_data_sharer->p_memory_header->WritePoint=0;
+			printd(TEXT("%s: shared_buffer=%x\n"),
+				__FUNCTION__,
+				shared_buffer);
+		
+			//Init Shared Memory Header(R/W Pointer,Size)
+			p_data_sharer->p_memory_header=(PMemoryHeader)shared_buffer;
+			if(is_server && p_data_sharer->p_memory_header)
+			{
+				p_data_sharer->p_memory_header->BufferSize=shared_memory_size;
+				p_data_sharer->p_memory_header->ReadPoint=p_data_sharer->p_memory_header->WritePoint=0;
+			}
+			printd(TEXT("%s: p_data_sharer->p_memory_header->Data=%x\n"),
+				__FUNCTION__,
+				p_data_sharer->p_memory_header->Data);
+				
+			InitializeCriticalSection(&p_data_sharer->critical_section);
+			return TRUE;
 		}
-		printd(TEXT("%s: p_data_sharer->p_memory_header->Data=%x\n"),
-			__FUNCTION__,
-			p_data_sharer->p_memory_header->Data);
-			
-		InitializeCriticalSection(&p_data_sharer->critical_section);
-		return TRUE;
 	}
 	return FALSE;	
 }

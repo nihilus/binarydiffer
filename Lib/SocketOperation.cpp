@@ -46,17 +46,22 @@ SOCKET CreateListener(DWORD (CALLBACK *WorkerThread)(LPVOID lpParam),unsigned sh
 		return FALSE;
 	}
 	SOCKET client_socket;
-	printf("Waiting for client to connect...\r\n");
+	printf("Waiting for client to connect on port %d...\r\n",listening_port);
 
 	if(WorkerThread)
 	{
 		// Accept the connection.
 		while(1)
 		{
-			client_socket=SOCKET_ERROR;
-			while(client_socket==SOCKET_ERROR)
+			client_socket=accept(a_socket,NULL,NULL);
+			printf("accepting=%d\n",client_socket);			
+			if(client_socket==INVALID_SOCKET)
 			{
-				client_socket=accept(a_socket,NULL,NULL);
+				int error=WSAGetLastError();
+				printf("Socket error=%d\n",error);
+				if(error!=WSAEWOULDBLOCK)
+					break;
+			}else{
 				CreateThread(
 					NULL,
 					0,
@@ -66,6 +71,7 @@ SOCKET CreateListener(DWORD (CALLBACK *WorkerThread)(LPVOID lpParam),unsigned sh
 					NULL);
 			}
 		}
+		return INVALID_SOCKET;
 	}else
 	{
 		return a_socket;

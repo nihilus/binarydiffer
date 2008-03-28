@@ -25,6 +25,6 @@ typedef struct _DataSharer_ {
 	PMemoryHeader p_memory_header;
 } DataSharer,*PDataSharer;
 
+BOOL InitDataSharer(PDataSharer p_data_sharer,TCHAR *shared_memory_name,int shared_memory_size,BOOL is_server);
 BOOL PutData(PDataSharer p_data_sharer,BYTE type,PBYTE data,DWORD length);
 PBYTE GetData(PDataSharer p_data_sharer,BYTE *p_type,DWORD *p_length);
-BOOL InitDataSharer(PDataSharer p_data_sharer,TCHAR *shared_memory_name,int shared_memory_size,BOOL is_server);
