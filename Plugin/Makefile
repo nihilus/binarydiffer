@@ -51,8 +51,8 @@ $(R)$(SUBDIR):
   $(CPP_PROJ) $< 
 <<
 
-$(F)AnalysisServer.obj: $(LOCAL_LIB_DIR)\AnalysisServer.cpp
-    $(CPP) $(CPP_PROJ) $(LOCAL_LIB_DIR)\AnalysisServer.cpp
+$(F)AnalysisServer.obj: $(DIFF_ENGINE_DIR)\AnalysisServer.cpp
+    $(CPP) $(CPP_PROJ) $(DIFF_ENGINE_DIR)\AnalysisServer.cpp
 
 $(F)SharedMemory.obj: $(LOCAL_LIB_DIR)\SharedMemory.cpp
     $(CPP) $(CPP_PROJ) $(LOCAL_LIB_DIR)\SharedMemory.cpp
