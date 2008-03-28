@@ -8,6 +8,10 @@
 #include <iostream>
 #include <list>
 
+#ifdef USE_DATABASE
+#include "Database.h"
+#endif
+
 #include "IdaIncludes.h"
 #include "AnalyzerData.h"
 
