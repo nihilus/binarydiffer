@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <kernwin.hpp>
 
 #include "IDAAnalysis.h"
 #include "SharedMemory.h"
@@ -694,6 +695,488 @@ bool AnalyzeRegion(AddrMapHash **p_addr_map_base,LocationInfo **p_p_first_locati
 	return TRUE;
 }
 
+void AnalyzeIDADataByRegion(bool (*Callback)(PVOID context,BYTE type,PBYTE data,DWORD length),PVOID Context,ea_t startEA,ea_t endEA)
+{
+	size_t current_item_size=0;
+	ea_t current_block_addr=0L;
+	ea_t current_addr=0L;
+	ea_t cref;
+
+	#define MAX_FINGERPRINT 1024
+	char fingerprint_data[MAX_FINGERPRINT];
+	int  fingerprint_i=0;
+	DWORD function_addr=0L;
+
+	bool found_branching=TRUE; //first we branch
+	
+	/////////////////////////////////////////////////////
+	msg("%x - %x\n",startEA,endEA);
+	for(current_addr=startEA;current_addr<endEA;current_addr+=current_item_size)
+	{
+		/////////////////////////////////////////////////////
+		int next_drefs_size=0;
+		bool cref_to_next_addr=FALSE;
+		flags_t flag=getFlags(current_addr);
+
+		current_item_size=get_item_size(current_addr);
+
+		MapInfo map_info;
+		
+		map_info.src=current_addr;
+
+		//New Location Found
+		if(found_branching)
+		{
+			//TODO: Push FingerPrint Data
+			if(!Callback(Context,
+				FINGERPRINT_INFO,
+				(PBYTE)fingerprint_data,
+				fingerprint_i))
+				break;
+
+			//Reset FingerPrint Data
+			memcpy(fingerprint_data,&current_addr,4);
+			fingerprint_i=4;
+
+			found_branching=FALSE;
+			OneLocationInfo one_location_info;
+			one_location_info.function_addr=NULL;
+
+			if(isCode(flag))
+			{
+				func_t *p_func=get_func(current_addr);
+				if(p_func)
+				{
+					function_addr=p_func->startEA;
+					one_location_info.function_addr=p_func->startEA;
+				}
+			}
+			//PUSH THIS:
+			current_block_addr=current_addr;
+			map_info.src_block=current_block_addr;
+			one_location_info.start_addr=current_addr;
+			one_location_info.end_addr=0L;
+			one_location_info.flag=flag;
+			
+			if(one_location_info.start_addr==one_location_info.function_addr)
+				one_location_info.block_type=FUNCTION_BLOCK;
+			else
+				one_location_info.block_type=UNKNOWN_BLOCK;
+
+			if(!Callback(Context,
+				ONE_LOCATION_INFO,
+				(PBYTE)&one_location_info,
+				sizeof(one_location_info)))
+				break;
+			
+			TCHAR name[1024];
+			if(get_true_name(current_addr,
+					current_addr,
+					name,
+					sizeof(name)))
+			{
+				if(!Callback(Context,
+					NAME_INFO,
+					(PBYTE)name,
+					strlen(name)+1))
+					break;
+			}
+			/*
+			//cref_to
+			cref=get_first_cref_to(current_addr);
+			while(cref!=BADADDR)
+			{
+				map_info.type=CREF_TO;
+				map_info.dst=cref;
+				if(!Callback(Context,
+					MAP_INFO,
+					(PBYTE)&map_info,
+					sizeof(map_info)))
+					break;
+				cref=get_next_cref_to(current_addr,cref);
+			}
+			*/		
+		}
+		map_info.src_block=current_block_addr;
+		bool  is_positive_jmp=TRUE;
+		//Collect Fingerprint Data
+		if(isCode(flag))
+		{
+			char op_buffer[100]={0,};
+			char operand_buffers[UA_MAXOP][MAXSTR+1];
+			bool save_fingerprint=TRUE;
+
+			if((sizeof(fingerprint_data)/sizeof(char))<fingerprint_i+7)
+			{
+				 save_fingerprint=FALSE;
+			}
+
+			ua_mnem(current_addr,op_buffer,sizeof(op_buffer));
+
+			//detect hot patching
+			//current_block_addr==function_addr
+			if(current_addr==current_block_addr && current_addr==function_addr)
+			{
+				if(cmd.itype==NN_mov &&
+					cmd.Operands[0].reg==cmd.Operands[0].reg
+				)
+				{
+					save_fingerprint=FALSE;
+				}
+			}
+			if(
+				cmd.itype==NN_ja ||                  // Jump if Above (CF=0 & ZF=0)
+				cmd.itype==NN_jae ||                 // Jump if Above or Equal (CF=0)
+				cmd.itype==NN_jc ||                  // Jump if Carry (CF=1)
+				cmd.itype==NN_jcxz ||                // Jump if CX is 0
+				cmd.itype==NN_jecxz ||               // Jump if ECX is 0
+				cmd.itype==NN_jrcxz ||               // Jump if RCX is 0
+				cmd.itype==NN_je ||                  // Jump if Equal (ZF=1)
+				cmd.itype==NN_jg ||                  // Jump if Greater (ZF=0 & SF=OF)
+				cmd.itype==NN_jge ||                 // Jump if Greater or Equal (SF=OF)
+				cmd.itype==NN_jo ||                  // Jump if Overflow (OF=1)
+				cmd.itype==NN_jp ||                  // Jump if Parity (PF=1)
+				cmd.itype==NN_jpe ||                 // Jump if Parity Even (PF=1)
+				cmd.itype==NN_js ||                  // Jump if Sign (SF=1)
+				cmd.itype==NN_jz ||                  // Jump if Zero (ZF=1)
+				cmd.itype==NN_jmp ||                 // Jump
+				cmd.itype==NN_jmpfi ||               // Indirect Far Jump
+				cmd.itype==NN_jmpni ||               // Indirect Near Jump
+				cmd.itype==NN_jmpshort ||            // Jump Short
+				cmd.itype==NN_jpo ||                 // Jump if Parity Odd  (PF=0)
+				cmd.itype==NN_jl ||                  // Jump if Less (SF!=OF)
+				cmd.itype==NN_jle ||                 // Jump if Less or Equal (ZF=1 | SF!=OF)
+				cmd.itype==NN_jb ||                  // Jump if Below (CF=1)
+				cmd.itype==NN_jbe ||                 // Jump if Below or Equal (CF=1 | ZF=1)
+				cmd.itype==NN_jna ||                 // Jump if Not Above (CF=1 | ZF=1)
+				cmd.itype==NN_jnae ||                // Jump if Not Above or Equal (CF=1)
+				cmd.itype==NN_jnb ||                 // Jump if Not Below (CF=0)
+				cmd.itype==NN_jnbe ||                // Jump if Not Below or Equal (CF=0 & ZF=0)
+				cmd.itype==NN_jnc ||                 // Jump if Not Carry (CF=0)
+				cmd.itype==NN_jne ||                 // Jump if Not Equal (ZF=0)
+				cmd.itype==NN_jng ||                 // Jump if Not Greater (ZF=1 | SF!=OF)
+				cmd.itype==NN_jnge ||                // Jump if Not Greater or Equal (ZF=1)
+				cmd.itype==NN_jnl ||                 // Jump if Not Less (SF=OF)
+				cmd.itype==NN_jnle ||                // Jump if Not Less or Equal (ZF=0 & SF=OF)
+				cmd.itype==NN_jno ||                 // Jump if Not Overflow (OF=0)
+				cmd.itype==NN_jnp ||                 // Jump if Not Parity (PF=0)
+				cmd.itype==NN_jns ||                 // Jump if Not Sign (SF=0)
+				cmd.itype==NN_jnz                 // Jump if Not Zero (ZF=0)
+			)
+			{
+				save_fingerprint=FALSE;
+				//map table
+				//check last instruction whether it was positive or negative to tweak the map
+				if(
+						cmd.itype==NN_ja ||                  // Jump if Above (CF=0 & ZF=0)
+						cmd.itype==NN_jae ||                 // Jump if Above or Equal (CF=0)
+						cmd.itype==NN_jc ||                  // Jump if Carry (CF=1)
+						cmd.itype==NN_jcxz ||                // Jump if CX is 0
+						cmd.itype==NN_jecxz ||               // Jump if ECX is 0
+						cmd.itype==NN_jrcxz ||               // Jump if RCX is 0
+						cmd.itype==NN_je ||                  // Jump if Equal (ZF=1)
+						cmd.itype==NN_jg ||                  // Jump if Greater (ZF=0 & SF=OF)
+						cmd.itype==NN_jge ||                 // Jump if Greater or Equal (SF=OF)
+						cmd.itype==NN_jo ||                  // Jump if Overflow (OF=1)
+						cmd.itype==NN_jp ||                  // Jump if Parity (PF=1)
+						cmd.itype==NN_jpe ||                 // Jump if Parity Even (PF=1)
+						cmd.itype==NN_js ||                  // Jump if Sign (SF=1)
+						cmd.itype==NN_jz ||                  // Jump if Zero (ZF=1)
+						cmd.itype==NN_jmp ||                 // Jump
+						cmd.itype==NN_jmpfi ||               // Indirect Far Jump
+						cmd.itype==NN_jmpni ||               // Indirect Near Jump
+						cmd.itype==NN_jmpshort ||            // Jump Short
+						cmd.itype==NN_jnl ||                 // Jump if Not Less (SF=OF)
+						cmd.itype==NN_jnle ||                // Jump if Not Less or Equal (ZF=0 & SF=OF)
+						cmd.itype==NN_jnb ||                 // Jump if Not Below (CF=0)
+						cmd.itype==NN_jnbe                 // Jump if Not Below or Equal (CF=0 & ZF=0)						
+					)
+				{
+					is_positive_jmp=TRUE;
+				}else{
+					is_positive_jmp=FALSE;
+				}
+			}
+			
+			//cmd.Operands[i].type
+			//dtyp
+			if(save_fingerprint)
+			{
+				fingerprint_data[fingerprint_i++]=0xcc;
+				fingerprint_data[fingerprint_i++]=cmd.itype;
+				for(int i=0;i<UA_MAXOP;i++)
+				{
+					if(cmd.Operands[i].type>0)
+					{
+						fingerprint_data[fingerprint_i++]=cmd.Operands[i].type;
+						fingerprint_data[fingerprint_i++]=cmd.Operands[i].dtyp;
+						/*
+						if(cmd.Operands[i].type==o_imm)
+						{
+							if(IsNumber(operand_buffers[i]))
+							{
+								fingerprint_data[fingerprint_i++]=(cmd.Operands[i].value>>8)&0xff;
+								fingerprint_data[fingerprint_i++]=cmd.Operands[i].value&0xff;
+							}
+						}
+						*/
+					}
+				}
+			}	
+		}
+
+		//Finding Next CREF/DREF
+		vector<ea_t> cref_list;
+
+		//cref from
+		//add links
+		cref=get_first_cref_from(current_addr);
+		while(cref!=BADADDR)
+		{
+			//if just flowing
+			if(cref==current_addr+current_item_size)
+			{
+				//next instruction...
+				cref_to_next_addr=TRUE;
+				//
+			}else{
+				//j* something or call
+				char op_buffer[40]={0,};
+				ua_mnem(current_addr,op_buffer,sizeof(op_buffer));
+				//if branching
+				//if cmd type is "call"
+				if(cmd.itype==NN_call || cmd.itype==NN_callfi || cmd.itype==NN_callni)
+				{
+
+					//this is a call
+					//PUSH THIS: call_addrs cref
+					map_info.type=CALL;
+					map_info.dst=cref;
+					if(!Callback(Context,
+						MAP_INFO,
+						(PBYTE)&map_info,
+						sizeof(map_info)))
+						break;
+				}else{
+					//this is a jump
+					found_branching=TRUE; //j* instruction found
+					{
+						//check if the jumped position(cref) is a nop block
+#ifdef SKIP_NULL_BLOCK
+
+						//if cmd type is "j*"
+						ua_mnem(cref,op_buffer,sizeof(op_buffer));
+						if(cmd.itype==NN_jmp || cmd.itype==NN_jmpfi || cmd.itype==NN_jmpni || cmd.itype==NN_jmpshort)
+						{
+							//we add the cref's next position instead cref
+							//because this is a null block(doing nothing but jump)
+							ea_t cref_from_cref=get_first_cref_from(cref);
+							while(cref_from_cref!=BADADDR)
+							{
+								//next_ crefs  cref_from_cref
+								cref_list.push_back(cref_from_cref);
+								cref_from_cref=get_next_cref_from(cref,cref_from_cref);
+							}
+						}else
+#endif
+						//all other cases
+						{
+							//PUSH THIS: next_crefs  cref
+							cref_list.push_back(cref);
+						}
+					}
+				}
+			}
+			cref=get_next_cref_from(current_addr,cref);
+		}
+
+
+		//dref_to
+		ea_t dref=get_first_dref_to(current_addr);
+		while(dref!=BADADDR)
+		{
+			//PUSH THIS: dref
+			map_info.type=DREF_TO;
+			map_info.dst=dref;
+			if(!Callback(Context,
+				MAP_INFO,
+				(PBYTE)&map_info,
+				sizeof(map_info)))
+				break;
+			dref=get_next_dref_to(current_addr,dref);
+		}
+
+		//dref_from
+		dref=get_first_dref_from(current_addr);
+		while(dref!=BADADDR)
+		{
+			//PUSH THIS: next_drefs dref
+
+			map_info.type=DREF_FROM;
+			map_info.dst=dref;
+			if(!Callback(Context,
+				MAP_INFO,
+				(PBYTE)&map_info,
+				sizeof(map_info)))
+				break;
+
+/*
+			//process  exception_handler
+			if(exception_handler_addr!=0L && dref==exception_handler_addr) //exception handler
+			{
+				if(next_drefs_size>1)
+				{
+					ea_t exception_handler_structure_start=next_drefs[p_location_info->next_drefs_size-2];
+					char handlers_structure_start_name[100];
+					get_true_name(exception_handler_structure_start,
+						exception_handler_structure_start,
+						handlers_structure_start_name,
+						sizeof(handlers_structure_start_name));
+
+					ea_t exception_handler_structure=exception_handler_structure_start;
+					while(1)
+					{
+						char handlers_structure_name[100];
+						get_true_name(exception_handler_structure,
+							exception_handler_structure,
+							handlers_structure_name,
+							sizeof(handlers_structure_name));
+
+						if((
+							handlers_structure_name[0]!=NULL &&
+							strcmp(handlers_structure_start_name,handlers_structure_name))
+							||
+							isCode(getFlags(exception_handler_structure))
+							)
+						{
+							break;
+						}
+						if((exception_handler_structure-exception_handler_structure_start)%4==0)
+						{
+							int pos=((exception_handler_structure-exception_handler_structure_start)/4)%3;
+							if(pos==1 || pos==2)
+							{
+								ea_t exception_handler_routine=get_first_dref_from(exception_handler_structure);
+								while(exception_handler_routine!=BADADDR)
+								{
+									//PUSH THIS: cref  exception_handler_routine
+									exception_handler_routine=get_next_dref_from(exception_handler_structure,exception_handler_routine);
+								}
+							}
+						}
+						exception_handler_structure+=get_item_size(exception_handler_structure);
+					}
+				}
+			}
+*/
+			dref=get_next_dref_from(current_addr,dref);
+		}
+
+		//Check if to set  found_branching
+		if(!found_branching)
+		{
+			char name[100]={0,};
+			//if name is on current_addr+ current_item_size
+			if(get_true_name(current_addr+current_item_size,
+				current_addr+current_item_size,
+				name,
+				sizeof(name)) &&
+				name[0]!=NULL
+			)
+			{
+				found_branching=TRUE; //new name found
+			}
+			if(!found_branching)
+			{
+				//or if code/data type changes
+				if(isCode(flag)!=isCode(getFlags(current_addr+current_item_size))) 
+				{
+					found_branching=TRUE; //code, data type change...
+				}
+			}
+		}
+
+		//Skip Null Block
+		if(isCode(flag) && 
+			found_branching && 
+			cref_to_next_addr)
+		{
+			char op_buffer[40]={0,};
+			ea_t cref=current_addr+current_item_size;
+			ua_mnem(cref,op_buffer,sizeof(op_buffer));
+#ifdef SKIP_NULL_BLOCK
+			if(cmd.itype==NN_jmp || cmd.itype==NN_jmpfi || cmd.itype==NN_jmpni || cmd.itype==NN_jmpshort)
+			{
+				//we add the cref's next position instead cref
+				//because this is a null block(doing nothing but jump)
+				ea_t cref_from_cref=get_first_cref_from(cref);
+				while(cref_from_cref!=BADADDR)
+				{
+					//PUSH THIS: next_crefs  cref_from_cref
+					cref_list.push_back(cref_from_cref);
+					cref_from_cref=get_next_cref_from(cref,cref_from_cref);
+				}
+			}else
+#endif
+			{
+				 //PUSH THIS: next_crefs  current_addr+current_item_size
+				cref_list.push_back(current_addr+current_item_size);
+			}
+		}
+		
+		/*
+		if(current_block_addr==0x7CDCCE96 || current_block_addr==0x7CDE8F9B)
+		{
+			msg("is_positive_jmp=%d\n",is_positive_jmp);
+			vector<ea_t>::iterator cref_list_iter;
+			for(cref_list_iter=cref_list.begin();
+				cref_list_iter!=cref_list.end();
+				cref_list_iter++)
+			{
+				msg("%x -> %x\n",
+					current_block_addr,
+					*cref_list_iter);
+			}				
+		}
+		*/
+		if(is_positive_jmp)
+		{
+			vector<ea_t>::iterator cref_list_iter;
+			for(cref_list_iter=cref_list.begin();
+				cref_list_iter!=cref_list.end();
+				cref_list_iter++)
+			{
+				map_info.type=CREF_FROM;
+				map_info.dst=*cref_list_iter;
+				if(!Callback(Context,
+					MAP_INFO,
+					(PBYTE)&map_info,
+					sizeof(map_info)))
+				{
+					break;
+				}
+			}
+		}else
+		{
+			vector<ea_t>::reverse_iterator cref_list_iter;				
+			for(cref_list_iter=cref_list.rbegin();
+				cref_list_iter!=cref_list.rend();
+				cref_list_iter++)
+			{
+				map_info.type=CREF_FROM;
+				map_info.dst=*cref_list_iter;
+				if(!Callback(Context,
+					MAP_INFO,
+					(PBYTE)&map_info,
+					sizeof(map_info)))
+				{
+					break;
+				}
+			}
+		}			
+	}
+}
+
 void AnalyzeIDAData(bool (*Callback)(PVOID context,BYTE type,PBYTE data,DWORD length),PVOID Context)
 {
 	FileInfo file_info;
@@ -719,483 +1202,20 @@ void AnalyzeIDAData(bool (*Callback)(PVOID context,BYTE type,PBYTE data,DWORD le
 		sizeof(FileInfo)))
 		return;
 
-	for(int n=0;n<get_segm_qty();n++)
+	ea_t saddr, eaddr;
+	ea_t addr;
+	// Get the user selection
+	int selected=read_selection(&saddr,&eaddr);
+
+	if(selected)
 	{
-		segment_t *seg_p=getnseg(n);
-		size_t current_item_size=0;
-		ea_t current_block_addr=0L;
-		ea_t current_addr=0L;
-		ea_t cref;
-
-		#define MAX_FINGERPRINT 1024
-		char fingerprint_data[MAX_FINGERPRINT];
-		int  fingerprint_i=0;
-		DWORD function_addr=0L;
-
-		bool found_branching=TRUE; //first we branch
-		msg("%x - %x\n",seg_p->startEA,seg_p->endEA);
-		for(current_addr=seg_p->startEA;current_addr<seg_p->endEA;current_addr+=current_item_size)
+		AnalyzeIDADataByRegion(Callback,Context,saddr,eaddr);
+	}else
+	{
+		for(int n=0;n<get_segm_qty();n++)
 		{
-			int next_drefs_size=0;
-			bool cref_to_next_addr=FALSE;
-			flags_t flag=getFlags(current_addr);
-
-			current_item_size=get_item_size(current_addr);
-
-			MapInfo map_info;
-			
-			map_info.src=current_addr;
-
-			//New Location Found
-			if(found_branching)
-			{
-				//TODO: Push FingerPrint Data
-				if(!Callback(Context,
-					FINGERPRINT_INFO,
-					(PBYTE)fingerprint_data,
-					fingerprint_i))
-					break;
-
-				//Reset FingerPrint Data
-				memcpy(fingerprint_data,&current_addr,4);
-				fingerprint_i=4;
-
-				found_branching=FALSE;
-				OneLocationInfo one_location_info;
-				one_location_info.function_addr=NULL;
-
-				if(isCode(flag))
-				{
-					func_t *p_func=get_func(current_addr);
-					if(p_func)
-					{
-						function_addr=p_func->startEA;
-						one_location_info.function_addr=p_func->startEA;
-					}
-				}
-				//PUSH THIS:
-				current_block_addr=current_addr;
-				map_info.src_block=current_block_addr;
-				one_location_info.start_addr=current_addr;
-				one_location_info.end_addr=0L;
-				one_location_info.flag=flag;
-				
-				if(one_location_info.start_addr==one_location_info.function_addr)
-					one_location_info.block_type=FUNCTION_BLOCK;
-				else
-					one_location_info.block_type=UNKNOWN_BLOCK;
-
-				if(!Callback(Context,
-					ONE_LOCATION_INFO,
-					(PBYTE)&one_location_info,
-					sizeof(one_location_info)))
-					break;
-				
-				TCHAR name[1024];
-				if(get_true_name(current_addr,
-						current_addr,
-						name,
-						sizeof(name)))
-				{
-					if(!Callback(Context,
-						NAME_INFO,
-						(PBYTE)name,
-						strlen(name)+1))
-						break;
-				}
-				/*
-				//cref_to
-				cref=get_first_cref_to(current_addr);
-				while(cref!=BADADDR)
-				{
-					map_info.type=CREF_TO;
-					map_info.dst=cref;
-					if(!Callback(Context,
-						MAP_INFO,
-						(PBYTE)&map_info,
-						sizeof(map_info)))
-						break;
-					cref=get_next_cref_to(current_addr,cref);
-				}
-				*/		
-			}
-			map_info.src_block=current_block_addr;
-			bool  is_positive_jmp=TRUE;
-			//Collect Fingerprint Data
-			if(isCode(flag))
-			{
-				char op_buffer[100]={0,};
-				char operand_buffers[UA_MAXOP][MAXSTR+1];
-				bool save_fingerprint=TRUE;
-
-				if((sizeof(fingerprint_data)/sizeof(char))<fingerprint_i+7)
-				{
-					 save_fingerprint=FALSE;
-				}
-
-				ua_mnem(current_addr,op_buffer,sizeof(op_buffer));
-
-				//detect hot patching
-				//current_block_addr==function_addr
-				if(current_addr==current_block_addr && current_addr==function_addr)
-				{
-					if(cmd.itype==NN_mov &&
-						cmd.Operands[0].reg==cmd.Operands[0].reg
-					)
-					{
-						save_fingerprint=FALSE;
-					}
-				}
-				if(
-					cmd.itype==NN_ja ||                  // Jump if Above (CF=0 & ZF=0)
-					cmd.itype==NN_jae ||                 // Jump if Above or Equal (CF=0)
-					cmd.itype==NN_jc ||                  // Jump if Carry (CF=1)
-					cmd.itype==NN_jcxz ||                // Jump if CX is 0
-					cmd.itype==NN_jecxz ||               // Jump if ECX is 0
-					cmd.itype==NN_jrcxz ||               // Jump if RCX is 0
-					cmd.itype==NN_je ||                  // Jump if Equal (ZF=1)
-					cmd.itype==NN_jg ||                  // Jump if Greater (ZF=0 & SF=OF)
-					cmd.itype==NN_jge ||                 // Jump if Greater or Equal (SF=OF)
-					cmd.itype==NN_jo ||                  // Jump if Overflow (OF=1)
-					cmd.itype==NN_jp ||                  // Jump if Parity (PF=1)
-					cmd.itype==NN_jpe ||                 // Jump if Parity Even (PF=1)
-					cmd.itype==NN_js ||                  // Jump if Sign (SF=1)
-					cmd.itype==NN_jz ||                  // Jump if Zero (ZF=1)
-					cmd.itype==NN_jmp ||                 // Jump
-					cmd.itype==NN_jmpfi ||               // Indirect Far Jump
-					cmd.itype==NN_jmpni ||               // Indirect Near Jump
-					cmd.itype==NN_jmpshort ||            // Jump Short
-					cmd.itype==NN_jpo ||                 // Jump if Parity Odd  (PF=0)
-					cmd.itype==NN_jl ||                  // Jump if Less (SF!=OF)
-					cmd.itype==NN_jle ||                 // Jump if Less or Equal (ZF=1 | SF!=OF)
-					cmd.itype==NN_jb ||                  // Jump if Below (CF=1)
-					cmd.itype==NN_jbe ||                 // Jump if Below or Equal (CF=1 | ZF=1)
-					cmd.itype==NN_jna ||                 // Jump if Not Above (CF=1 | ZF=1)
-					cmd.itype==NN_jnae ||                // Jump if Not Above or Equal (CF=1)
-					cmd.itype==NN_jnb ||                 // Jump if Not Below (CF=0)
-					cmd.itype==NN_jnbe ||                // Jump if Not Below or Equal (CF=0 & ZF=0)
-					cmd.itype==NN_jnc ||                 // Jump if Not Carry (CF=0)
-					cmd.itype==NN_jne ||                 // Jump if Not Equal (ZF=0)
-					cmd.itype==NN_jng ||                 // Jump if Not Greater (ZF=1 | SF!=OF)
-					cmd.itype==NN_jnge ||                // Jump if Not Greater or Equal (ZF=1)
-					cmd.itype==NN_jnl ||                 // Jump if Not Less (SF=OF)
-					cmd.itype==NN_jnle ||                // Jump if Not Less or Equal (ZF=0 & SF=OF)
-					cmd.itype==NN_jno ||                 // Jump if Not Overflow (OF=0)
-					cmd.itype==NN_jnp ||                 // Jump if Not Parity (PF=0)
-					cmd.itype==NN_jns ||                 // Jump if Not Sign (SF=0)
-					cmd.itype==NN_jnz                 // Jump if Not Zero (ZF=0)
-				)
-				{
-					save_fingerprint=FALSE;
-					//map table
-					//check last instruction whether it was positive or negative to tweak the map
-					if(
-							cmd.itype==NN_ja ||                  // Jump if Above (CF=0 & ZF=0)
-							cmd.itype==NN_jae ||                 // Jump if Above or Equal (CF=0)
-							cmd.itype==NN_jc ||                  // Jump if Carry (CF=1)
-							cmd.itype==NN_jcxz ||                // Jump if CX is 0
-							cmd.itype==NN_jecxz ||               // Jump if ECX is 0
-							cmd.itype==NN_jrcxz ||               // Jump if RCX is 0
-							cmd.itype==NN_je ||                  // Jump if Equal (ZF=1)
-							cmd.itype==NN_jg ||                  // Jump if Greater (ZF=0 & SF=OF)
-							cmd.itype==NN_jge ||                 // Jump if Greater or Equal (SF=OF)
-							cmd.itype==NN_jo ||                  // Jump if Overflow (OF=1)
-							cmd.itype==NN_jp ||                  // Jump if Parity (PF=1)
-							cmd.itype==NN_jpe ||                 // Jump if Parity Even (PF=1)
-							cmd.itype==NN_js ||                  // Jump if Sign (SF=1)
-							cmd.itype==NN_jz ||                  // Jump if Zero (ZF=1)
-							cmd.itype==NN_jmp ||                 // Jump
-							cmd.itype==NN_jmpfi ||               // Indirect Far Jump
-							cmd.itype==NN_jmpni ||               // Indirect Near Jump
-							cmd.itype==NN_jmpshort ||            // Jump Short
-							cmd.itype==NN_jnl ||                 // Jump if Not Less (SF=OF)
-							cmd.itype==NN_jnle ||                // Jump if Not Less or Equal (ZF=0 & SF=OF)
-							cmd.itype==NN_jnb ||                 // Jump if Not Below (CF=0)
-							cmd.itype==NN_jnbe                 // Jump if Not Below or Equal (CF=0 & ZF=0)						
-						)
-					{
-						is_positive_jmp=TRUE;
-					}else{
-						is_positive_jmp=FALSE;
-					}
-				}
-				
-				//cmd.Operands[i].type
-				//dtyp
-				if(save_fingerprint)
-				{
-					fingerprint_data[fingerprint_i++]=0xcc;
-					fingerprint_data[fingerprint_i++]=cmd.itype;
-					for(int i=0;i<UA_MAXOP;i++)
-					{
-						if(cmd.Operands[i].type>0)
-						{
-							fingerprint_data[fingerprint_i++]=cmd.Operands[i].type;
-							fingerprint_data[fingerprint_i++]=cmd.Operands[i].dtyp;
-							/*
-							if(cmd.Operands[i].type==o_imm)
-							{
-								if(IsNumber(operand_buffers[i]))
-								{
-									fingerprint_data[fingerprint_i++]=(cmd.Operands[i].value>>8)&0xff;
-									fingerprint_data[fingerprint_i++]=cmd.Operands[i].value&0xff;
-								}
-							}
-							*/
-						}
-					}
-				}	
-			}
-
-			//Finding Next CREF/DREF
-			vector<ea_t> cref_list;
-
-			//cref from
-			//add links
-			cref=get_first_cref_from(current_addr);
-			while(cref!=BADADDR)
-			{
-				//if just flowing
-				if(cref==current_addr+current_item_size)
-				{
-					//next instruction...
-					cref_to_next_addr=TRUE;
-					//
-				}else{
-					//j* something or call
-					char op_buffer[40]={0,};
-					ua_mnem(current_addr,op_buffer,sizeof(op_buffer));
-					//if branching
-					//if cmd type is "call"
-					if(cmd.itype==NN_call || cmd.itype==NN_callfi || cmd.itype==NN_callni)
-					{
-
-						//this is a call
-						//PUSH THIS: call_addrs cref
-						map_info.type=CALL;
-						map_info.dst=cref;
-						if(!Callback(Context,
-							MAP_INFO,
-							(PBYTE)&map_info,
-							sizeof(map_info)))
-							break;
-					}else{
-						//this is a jump
-						found_branching=TRUE; //j* instruction found
-						{
-							//check if the jumped position(cref) is a nop block
-#ifdef SKIP_NULL_BLOCK
-
-							//if cmd type is "j*"
-							ua_mnem(cref,op_buffer,sizeof(op_buffer));
-							if(cmd.itype==NN_jmp || cmd.itype==NN_jmpfi || cmd.itype==NN_jmpni || cmd.itype==NN_jmpshort)
-							{
-								//we add the cref's next position instead cref
-								//because this is a null block(doing nothing but jump)
-								ea_t cref_from_cref=get_first_cref_from(cref);
-								while(cref_from_cref!=BADADDR)
-								{
-									//next_ crefs  cref_from_cref
-									cref_list.push_back(cref_from_cref);
-									cref_from_cref=get_next_cref_from(cref,cref_from_cref);
-								}
-							}else
-#endif
-							//all other cases
-							{
-								//PUSH THIS: next_crefs  cref
-								cref_list.push_back(cref);
-							}
-						}
-					}
-				}
-				cref=get_next_cref_from(current_addr,cref);
-			}
-
-
-			//dref_to
-			ea_t dref=get_first_dref_to(current_addr);
-			while(dref!=BADADDR)
-			{
-				//PUSH THIS: dref
-				map_info.type=DREF_TO;
-				map_info.dst=dref;
-				if(!Callback(Context,
-					MAP_INFO,
-					(PBYTE)&map_info,
-					sizeof(map_info)))
-					break;
-				dref=get_next_dref_to(current_addr,dref);
-			}
-
-			//dref_from
-			dref=get_first_dref_from(current_addr);
-			while(dref!=BADADDR)
-			{
-				//PUSH THIS: next_drefs dref
-
-				map_info.type=DREF_FROM;
-				map_info.dst=dref;
-				if(!Callback(Context,
-					MAP_INFO,
-					(PBYTE)&map_info,
-					sizeof(map_info)))
-					break;
-
-/*
-				//process  exception_handler
-				if(exception_handler_addr!=0L && dref==exception_handler_addr) //exception handler
-				{
-					if(next_drefs_size>1)
-					{
-						ea_t exception_handler_structure_start=next_drefs[p_location_info->next_drefs_size-2];
-						char handlers_structure_start_name[100];
-						get_true_name(exception_handler_structure_start,
-							exception_handler_structure_start,
-							handlers_structure_start_name,
-							sizeof(handlers_structure_start_name));
-
-						ea_t exception_handler_structure=exception_handler_structure_start;
-						while(1)
-						{
-							char handlers_structure_name[100];
-							get_true_name(exception_handler_structure,
-								exception_handler_structure,
-								handlers_structure_name,
-								sizeof(handlers_structure_name));
-
-							if((
-								handlers_structure_name[0]!=NULL &&
-								strcmp(handlers_structure_start_name,handlers_structure_name))
-								||
-								isCode(getFlags(exception_handler_structure))
-								)
-							{
-								break;
-							}
-							if((exception_handler_structure-exception_handler_structure_start)%4==0)
-							{
-								int pos=((exception_handler_structure-exception_handler_structure_start)/4)%3;
-								if(pos==1 || pos==2)
-								{
-									ea_t exception_handler_routine=get_first_dref_from(exception_handler_structure);
-									while(exception_handler_routine!=BADADDR)
-									{
-										//PUSH THIS: cref  exception_handler_routine
-										exception_handler_routine=get_next_dref_from(exception_handler_structure,exception_handler_routine);
-									}
-								}
-							}
-							exception_handler_structure+=get_item_size(exception_handler_structure);
-						}
-					}
-				}
-*/
-				dref=get_next_dref_from(current_addr,dref);
-			}
-
-			//Check if to set  found_branching
-			if(!found_branching)
-			{
-				char name[100]={0,};
-				//if name is on current_addr+ current_item_size
-				if(get_true_name(current_addr+current_item_size,
-					current_addr+current_item_size,
-					name,
-					sizeof(name)) &&
-					name[0]!=NULL
-				)
-				{
-					found_branching=TRUE; //new name found
-				}
-				if(!found_branching)
-				{
-					//or if code/data type changes
-					if(isCode(flag)!=isCode(getFlags(current_addr+current_item_size))) 
-					{
-						found_branching=TRUE; //code, data type change...
-					}
-				}
-			}
-
-			//Skip Null Block
-			if(isCode(flag) && 
-				found_branching && 
-				cref_to_next_addr)
-			{
-				char op_buffer[40]={0,};
-				ea_t cref=current_addr+current_item_size;
-				ua_mnem(cref,op_buffer,sizeof(op_buffer));
-#ifdef SKIP_NULL_BLOCK
-				if(cmd.itype==NN_jmp || cmd.itype==NN_jmpfi || cmd.itype==NN_jmpni || cmd.itype==NN_jmpshort)
-				{
-					//we add the cref's next position instead cref
-					//because this is a null block(doing nothing but jump)
-					ea_t cref_from_cref=get_first_cref_from(cref);
-					while(cref_from_cref!=BADADDR)
-					{
-						//PUSH THIS: next_crefs  cref_from_cref
-						cref_list.push_back(cref_from_cref);
-						cref_from_cref=get_next_cref_from(cref,cref_from_cref);
-					}
-				}else
-#endif
-				{
-					 //PUSH THIS: next_crefs  current_addr+current_item_size
-					cref_list.push_back(current_addr+current_item_size);
-				}
-			}
-			
-			/*
-			if(current_block_addr==0x7CDCCE96 || current_block_addr==0x7CDE8F9B)
-			{
-				msg("is_positive_jmp=%d\n",is_positive_jmp);
-				vector<ea_t>::iterator cref_list_iter;
-				for(cref_list_iter=cref_list.begin();
-					cref_list_iter!=cref_list.end();
-					cref_list_iter++)
-				{
-					msg("%x -> %x\n",
-						current_block_addr,
-						*cref_list_iter);
-				}				
-			}
-			*/
-			if(is_positive_jmp)
-			{
-				vector<ea_t>::iterator cref_list_iter;
-				for(cref_list_iter=cref_list.begin();
-					cref_list_iter!=cref_list.end();
-					cref_list_iter++)
-				{
-					map_info.type=CREF_FROM;
-					map_info.dst=*cref_list_iter;
-					if(!Callback(Context,
-						MAP_INFO,
-						(PBYTE)&map_info,
-						sizeof(map_info)))
-					{
-						break;
-					}
-				}
-			}else
-			{
-				vector<ea_t>::reverse_iterator cref_list_iter;				
-				for(cref_list_iter=cref_list.rbegin();
-					cref_list_iter!=cref_list.rend();
-					cref_list_iter++)
-				{
-					map_info.type=CREF_FROM;
-					map_info.dst=*cref_list_iter;
-					if(!Callback(Context,
-						MAP_INFO,
-						(PBYTE)&map_info,
-						sizeof(map_info)))
-					{
-						break;
-					}
-				}
-			}			
+			segment_t *seg_p=getnseg(n);
+			AnalyzeIDADataByRegion(Callback,Context,seg_p->startEA,seg_p->endEA);
 		}
 	}
 	if(!Callback(Context,
@@ -1205,3 +1225,4 @@ void AnalyzeIDAData(bool (*Callback)(PVOID context,BYTE type,PBYTE data,DWORD le
 		return;
 	msg("Sent All Analysis Info\n");
 }
+
