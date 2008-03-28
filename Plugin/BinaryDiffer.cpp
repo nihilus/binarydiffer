@@ -537,7 +537,6 @@ int ProcessCommand(SOCKET data_socket,char type,DWORD length,PBYTE data)
 	}
 	return 0;
 }
-#undef USE_DATABASE
 
 EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 void idaapi run(int arg)
@@ -586,11 +585,11 @@ void idaapi run(int arg)
 	msg("End of Analysis\n");
 }
 
-char comment[]="This is a Binary Differ plugin.";
+char comment[]="This is a Binary Differ Plugin.";
 char help[] =
-				"A Binary Differ plugin module\n"
-				"This module helps you to analyze asm listings.\n"
-				"This dumps ida content to sqlite DB.\n";
+				"A Binary Differ Plugin module\n"
+				"This module let you analyze differences in two binaries.\n"
+				"This plugin dumps ida analysis data to Binary Differ Server.\n";
 
 char wanted_name[]="Binary Differ";
 char wanted_hotkey[]="Alt-8";
