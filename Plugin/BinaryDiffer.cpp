@@ -555,13 +555,12 @@ void idaapi run(int arg)
 #endif
 	FixExceptionHandlers();
 
-/*
 #ifdef INTERNAL_SERVER		
 	StartAnalysisServer(TRUE);
-#else
+#elif defined(EXTERNAL_SERVER)
 	StartProcess(EXTERNAL_SERVER);
 #endif
-*/
+
 #ifdef USE_DATABASE
 	AddrMapHash *addr_map_base=NULL;
 	LocationInfo *p_first_location_info=NULL;
