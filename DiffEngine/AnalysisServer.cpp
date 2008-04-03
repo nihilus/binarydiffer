@@ -1504,7 +1504,7 @@ void ProcessRequest(DWORD dwEvent)
 								(PBYTE)&match_map_iter->second.Address,
 								sizeof(DWORD));
 						}
-						while(match_map_iter!=p_analysis_result->match_map.end() &&
+						while(match_map_iter!=p_analysis_result->reverse_match_map.end() &&
 							match_map_iter->first==block_address)							
 						{
 							DumpMatchMapIterInfo(match_map_iter);
