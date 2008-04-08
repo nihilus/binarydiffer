@@ -24,9 +24,6 @@
 
 #define DEBUG_LEVEL 0
 
-#undef USE_MATCH_MAP
-#define USE_MATCH_MAP
-
 FILE *log_fd=NULL;
 bool met_linefeed=TRUE;
 void printd2(char *format, ...)
@@ -99,9 +96,9 @@ typedef struct _MappingData_{
 enum {NAME_MATCH,FINGER_PRINT_MATCH,TWO_LEVEL_FINGER_PRINT_MATCH,TREE_MATCH};
 char *MappingDataTypeStr[]={"Name Match","Fingerprint Match","Two Level Fingerprint Match","Tree Match"};
 int types[]={CREF_FROM,CREF_TO,CALL,DREF_FROM,DREF_TO};
-
-char *MapInfoTypesStr[]={"Call","Cref From","Cref To","Dref From","Dref To"};
 char *SubTypeStr[]={"Cref From","Cref To","Call","Dref From","Dref To"};
+char *MapInfoTypesStr[]={"Call","Cref From","Cref To","Dref From","Dref To"};
+
 
 /*
 typedef char *string;
@@ -300,6 +297,7 @@ void DoFingerPrintMatch(
 			fingerprint_hash_map_pIter!=p_analysis_info_unpatched->fingerprint_hash_map.end();
 			fingerprint_hash_map_pIter++)
 		{
+			bool matched=FALSE;
 			if(p_analysis_info_unpatched->fingerprint_hash_map.count(fingerprint_hash_map_pIter->first)==1)
 			{
 				//unique key
@@ -326,10 +324,23 @@ void DoFingerPrintMatch(
 							fingerprint_hash_map_pIter->first,
 							patched_fingerprint_hash_map_pIter->first
 							));
+#if DEBUG_LEVEL > 2
+							printf("%s: matched %x-%x\n",__FUNCTION__,
+								fingerprint_hash_map_pIter->second,
+								patched_fingerprint_hash_map_pIter->second);
+#endif
+						matched=TRUE;
+							
 						matched_number++;
 					}
 				}
 			}
+#if DEBUG_LEVEL > 2
+			if(!matched)
+			{
+				printf("%s: No match found for %x\n",__FUNCTION__,fingerprint_hash_map_pIter->second);
+			}
+#endif
 		}
 		multimap <string, string>::iterator to_remove_map_pIter;
 		for(to_remove_map_pIter=to_remove_map.begin();
@@ -481,9 +492,9 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 	int matched_number=0;
 	bool done_name_match=FALSE;
 
-	multimap <DWORD,MappingData> temporary_match_map;
 	while(1)
-	{	
+	{
+		multimap <DWORD,MappingData> temporary_match_map;
 		// Name Match
 		if(!done_name_match)
 		{
@@ -526,7 +537,6 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 								patched_name_hash_map_pIter->second);
 #endif
 						}
-						//printf("%s: %s\n",__FUNCTION__,name_hash_map_pIter->first);
 					}
 				}
 			}
@@ -541,7 +551,7 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 
 		// Tree match
 		multimap <DWORD,MappingData> *p_analyze_for_tree_matching_target_match_map=&temporary_match_map;
-		while(1)
+		while(p_analyze_for_tree_matching_target_match_map->size()>0)
 		{
 			int matched_count=0;
 			int processed_count=0;
@@ -554,15 +564,18 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 				match_map_iter++)
 			{
 				match_map_iter->second.Status|=TREE_CHECKED;
-#ifdef USE_MATCH_MAP
 				p_analysis_result->match_map.insert(MatchMap_Pair(match_map_iter->first,match_map_iter->second));
 
-				DWORD src_address;
-				src_address=match_map_iter->second.Address;
-				match_map_iter->second.Address=match_map_iter->first;
-				p_analysis_result->reverse_match_map.insert(MatchMap_Pair(src_address,match_map_iter->second));
-#endif
+				MappingData mapping_data;
+				memcpy(&mapping_data,&match_map_iter->second,sizeof(MappingData));
+				mapping_data.Address=match_map_iter->first;
+				p_analysis_result->reverse_match_map.insert(MatchMap_Pair(match_map_iter->second.Address,mapping_data));
+			}
 
+			for(match_map_iter=p_analyze_for_tree_matching_target_match_map->begin();
+				match_map_iter!=p_analyze_for_tree_matching_target_match_map->end();
+				match_map_iter++)
+			{
 				int unpatched_addresses_number;
 				int patched_addresses_number;
 
@@ -570,6 +583,18 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 				{
 					DWORD *unpatched_addresses=GetMappedAddresses(p_analysis_info_unpatched,match_map_iter->first,types[type_pos],&unpatched_addresses_number);
 					DWORD *patched_addresses=GetMappedAddresses(p_analysis_info_patched,match_map_iter->second.Address,types[type_pos],&patched_addresses_number);
+#if DEBUG_LEVEL > 2
+					int i;
+					printf("%s: %s %x: ",__FUNCTION__,SubTypeStr[types[type_pos]],match_map_iter->first);
+					for(i=0;i<unpatched_addresses_number;i++)
+						printf("%x ",unpatched_addresses[i]);
+					printf(" -- ");
+
+					printf(" %x: ",match_map_iter->second.Address);
+					for(i=0;i<patched_addresses_number;i++)
+						printf("%x ",patched_addresses[i]);
+					printf("\n");
+#endif
 					if(unpatched_addresses_number==patched_addresses_number)
 					{
 						multimap <DWORD, string>::iterator unpatched_address_fingerprint_hash_map_Iter;
@@ -580,7 +605,7 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 							unpatched_address_fingerprint_hash_map_Iter=p_analysis_info_unpatched->address_fingerprint_hash_map.find(unpatched_addresses[i]);
 							patched_address_fingerprint_hash_map_Iter=p_analysis_info_patched->address_fingerprint_hash_map.find(patched_addresses[i]);
 								
-							int match_rate;
+							int match_rate=50;
 							if(
 								(
 									(
@@ -598,23 +623,22 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 							)
 							{
 								bool add=TRUE;
-								multimap <DWORD,MappingData> *p_compared_match_map[]={&p_analysis_result->match_map,
+								multimap <DWORD,MappingData> *p_compared_match_map[]={
+									&p_analysis_result->match_map,
 									p_analyze_for_tree_matching_result_match_map,
 									p_analyze_for_tree_matching_target_match_map};
 								
 								multimap <DWORD, MappingData>::iterator cur_match_map_iter;
-
 								//If not found from "all" match map
-								for(int compare_i=0;compare_i<sizeof(p_compared_match_map)/sizeof(multimap <DWORD,MappingData> *);compare_i++)
+								for(int compare_i=0;compare_i<sizeof(p_compared_match_map)/sizeof(p_compared_match_map[0]);compare_i++)
 								{
 									cur_match_map_iter=p_compared_match_map[compare_i]->find(unpatched_addresses[i]);
-
+ 
 									while(cur_match_map_iter!=p_compared_match_map[compare_i]->end() &&
 											cur_match_map_iter->first==unpatched_addresses[i]
 									)
 									{
-										if(cur_match_map_iter->first==unpatched_addresses[i] &&
-											cur_match_map_iter->second.Address==patched_addresses[i])
+										if(cur_match_map_iter->second.Address==patched_addresses[i])
 										{
 											add=FALSE;
 											break;
@@ -658,15 +682,24 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 				}
 			}
 
-			p_analyze_for_tree_matching_target_match_map->clear();
-			if(p_analyze_for_tree_matching_target_match_map!=&temporary_match_map)
+			if(p_analyze_for_tree_matching_target_match_map->size()>0)
 			{
-				printf("%s: Cleaning p_analyze_for_tree_matching_target_match_map\n",__FUNCTION__);
-				delete p_analyze_for_tree_matching_target_match_map;
-			}
-			p_analyze_for_tree_matching_target_match_map=p_analyze_for_tree_matching_result_match_map;
-			printf("%s: map tree match=%d\n",__FUNCTION__,p_analyze_for_tree_matching_result_match_map->size());
-			if(p_analyze_for_tree_matching_result_match_map->size()==0)
+				if(p_analyze_for_tree_matching_target_match_map!=&temporary_match_map)
+				{
+					printf("%s: Cleaning p_analyze_for_tree_matching_target_match_map\n",__FUNCTION__);
+					p_analyze_for_tree_matching_target_match_map->clear();					
+					delete p_analyze_for_tree_matching_target_match_map;
+				}
+				p_analyze_for_tree_matching_target_match_map=p_analyze_for_tree_matching_result_match_map;
+
+				for(match_map_iter=p_analyze_for_tree_matching_result_match_map->begin();
+					match_map_iter!=p_analyze_for_tree_matching_result_match_map->end();
+					match_map_iter++)
+				{
+					RemoveFromFingerprintHash(p_analysis_info_unpatched,match_map_iter->first);
+					RemoveFromFingerprintHash(p_analysis_info_patched,match_map_iter->second.Address);
+				}
+			}else
 			{
 				p_analyze_for_tree_matching_result_match_map->clear();
 				if(p_analyze_for_tree_matching_result_match_map!=&temporary_match_map)
@@ -675,14 +708,6 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 					delete p_analyze_for_tree_matching_result_match_map;
 				}
 				break;
-			}
-
-			for(match_map_iter=p_analyze_for_tree_matching_result_match_map->begin();
-				match_map_iter!=p_analyze_for_tree_matching_result_match_map->end();
-				match_map_iter++)
-			{
-				RemoveFromFingerprintHash(p_analysis_info_unpatched,match_map_iter->first);
-				RemoveFromFingerprintHash(p_analysis_info_patched,match_map_iter->second.Address);
 			}
 		}
 		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -740,7 +765,7 @@ AnalysisResult *DiffAnalysisInfo(PAnalysisInfo p_analysis_info_unpatched,PAnalys
 		printf("%s: Two level fingerprint matched count=%d\n",__FUNCTION__,matched_number);
 
 		///////////////// Done, Summary ////////////////////
-		printf("%s: total=%d\n",__FUNCTION__,p_analysis_result->match_map.size());
+		printf("%s: End Of Analysis Total=%d\n",__FUNCTION__,p_analysis_result->match_map.size());
 		if(temporary_match_map.size()==0)
 			break;
 	}
@@ -1267,13 +1292,17 @@ AnalysisInfo *RetrieveAnalysisInfo(DataSharer *p_data_sharer)
 			free(data);
 		}else if(type==END_OF_DATA)
 		{
+#if DEBUG_LEVEL > 0
 			printf("%s: End of Analysis\n",__FUNCTION__);
-			printf("%s: address_hash_map %d entries\nfingerprint_hash_map %d entries\nname_hash_map %d entries\nmap_info_hash_map %d entries\n",__FUNCTION__,
+			printf("%s: address_hash_map:%d/fingerprint_hash_map:%d/name_hash_map:%d/map_info_hash_map:%d\n",
+				__FUNCTION__,
 				p_analysis_info->address_hash_map.size(),
 				p_analysis_info->fingerprint_hash_map.size(),
 				p_analysis_info->name_hash_map.size(),
 				p_analysis_info->map_info_hash_map.size()
 				);
+#endif
+
 #if DEBUG_LEVEL > 1000
 			fingerprint_hash_map_pIter=p_analysis_info->fingerprint_hash_map.find("1b04020502");
 			if(fingerprint_hash_map_pIter!=p_analysis_info->fingerprint_hash_map.end())
