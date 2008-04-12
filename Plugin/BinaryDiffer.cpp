@@ -39,6 +39,8 @@ ea_t exception_handler_addr=0L;
 #define DISASM_LINE 5
 #define DATA_TYPE 6
 
+#include "IDAVerifier.h"
+
 char *output_filename;
 
 static const char generate_db_file_args[]={VT_STR,0 };
@@ -542,12 +544,12 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 void idaapi run(int arg)
 {
 	msg("Start Analysis\n");
-
 	if(arg==1)
 	{
 		return;
 	}
 
+	FindInvalidFunctionStartAndConnectBrokenFunctionChunk();
 #ifdef USE_DATABASE
 	sqlite3 *db=InitializeDatabase(arg);
 	if(!db)

@@ -24,7 +24,7 @@ A=.lib                               # library file extension
 RM=erase /q                          # File Remover
 IDALIB=$(L)ida$(A)
 
-OBJS=$(F)IDAAnalysis$(O) $(F)AnalysisServer$(O) $(F)fileinfo$(O) $(F)md5$(O) $(F)SharedMemory$(O) $(F)SharedSocket$(O) $(F)SocketOperation.obj $(F)ProcessUtils$(O) $(F)$(PROC)$(O)
+OBJS=$(F)IDAAnalysis$(O) $(F)AnalysisServer$(O) $(F)fileinfo$(O) $(F)md5$(O) $(F)SharedMemory$(O) $(F)SharedSocket$(O) $(F)SocketOperation.obj $(F)ProcessUtils$(O) $(F)IDAVerifier$(O) $(F)$(PROC)$(O)
 
 BINARY=$(R)$(SUBDIR)$(PROC)$(PLUGIN)
 
@@ -76,6 +76,9 @@ $(F)SocketOperation.obj: $(LOCAL_LIB_DIR)\SocketOperation.cpp
 
 $(F)ProcessUtils.obj: $(LOCAL_LIB_DIR)\ProcessUtils.cpp
     $(CPP) $(CPP_PROJ) $(LOCAL_LIB_DIR)\ProcessUtils.cpp
+
+$(F)IDAVerifier.obj: $(LOCAL_LIB_DIR)\IDAVerifier.cpp
+    $(CPP) $(CPP_PROJ) $(LOCAL_LIB_DIR)\IDAVerifier.cpp
 
 .cpp{$(F)}.obj::
 	$(CPP) @<<
